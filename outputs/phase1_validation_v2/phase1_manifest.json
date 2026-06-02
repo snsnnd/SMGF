@@ -1,0 +1,12 @@
+{
+  "split": "validation",
+  "seed_start": 10,
+  "trials": 30,
+  "outputs": {
+    "A_basic_modules": "outputs/phase1_validation_v2/A_basic_modules",
+    "B_encirclement_geometry": "outputs/phase1_validation_v2/B_encirclement_geometry",
+    "C_pressure_passage": "outputs/phase1_validation_v2/C_pressure_passage",
+    "D1_prediction_scan": "outputs/phase1_validation_v2/D1_prediction_scan",
+    "D2_prediction_scan": "outputs/phase1_validation_v2/D2_prediction_scan"
+  }
+}

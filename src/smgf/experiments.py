@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import os
+from concurrent.futures import ProcessPoolExecutor
 from dataclasses import asdict, replace
 from pathlib import Path
 
@@ -56,6 +58,16 @@ EXPERIMENT_GROUPS = {
             {"scene": "s5_dense_tracking_easy", "methods": ["M4", "M6", "M7", "M9"]},
             {"scene": "s5_dense_tracking_medium", "methods": ["M4", "M6", "M7", "M9"]},
             {"scene": "s5_dense_tracking_hard", "methods": ["M4", "M6", "M7", "M9"]},
+        ],
+    },
+    "F_safe_tradeoff": {
+        "title": "Group F Safety-Force Tradeoff Verification",
+        "entries": [
+            {"scene": "a3_multi_agent_safety_crossing", "methods": ["M7", "M10"]},
+            {"scene": "b3_moving_target_open_encirclement", "methods": ["M7", "M10"]},
+            {"scene": "s4_narrow_passage_easy", "methods": ["M7", "M10"]},
+            {"scene": "s6_fast_target", "methods": ["M7", "M10"]},
+            {"scene": "d2_fast_target_single_obstacle", "methods": ["M7", "M10"]},
         ],
     },
 }
@@ -188,6 +200,13 @@ def _metrics_to_row(scene_key: str, method_key: str, seed: int, metrics: TrialMe
     return row
 
 
+def _entry_trial_task(task: tuple[str, str, int]) -> dict:
+    scene_key, method_key, seed = task
+    scene = SCENARIOS[scene_key]
+    metrics = run_scene_trial(scene, METHOD_LIBRARY[method_key], seed=seed)["metrics"]
+    return _metrics_to_row(scene_key, method_key, seed, metrics)
+
+
 def _summarize_detail(detail_df: pd.DataFrame) -> pd.DataFrame:
     return (
         detail_df.groupby(["scene", "method"])
@@ -233,8 +252,9 @@ def _summarize_detail(detail_df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def _run_entries(entries: list[dict], output_path: Path, trials: int, seed_start: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+def _run_entries(entries: list[dict], output_path: Path, trials: int, seed_start: int = 0, workers: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     rows = []
+    tasks: list[tuple[str, str, int]] = []
     for entry in entries:
         scene_key = entry["scene"]
         scene = SCENARIOS[scene_key]
@@ -245,8 +265,17 @@ def _run_entries(entries: list[dict], output_path: Path, trials: int, seed_start
             plot_dir = output_path / "examples" / scene_key / method_key
             _plot_trial(result, plot_dir)
             for seed in range(seed_start, seed_start + trials):
-                metrics = run_scene_trial(scene, METHOD_LIBRARY[method_key], seed=seed)["metrics"]
-                rows.append(_metrics_to_row(scene_key, method_key, seed, metrics))
+                tasks.append((scene_key, method_key, seed))
+
+    resolved_workers = workers if workers is not None else max(1, (os.cpu_count() or 1) - 1)
+    if resolved_workers <= 1:
+        for task in tasks:
+            rows.append(_entry_trial_task(task))
+    else:
+        with ProcessPoolExecutor(max_workers=resolved_workers) as executor:
+            for row in executor.map(_entry_trial_task, tasks):
+                rows.append(row)
+
     detail_df = pd.DataFrame(rows)
     detail_df.to_csv(output_path / "trial_metrics.csv", index=False)
     summary = _summarize_detail(detail_df)
@@ -256,7 +285,7 @@ def _run_entries(entries: list[dict], output_path: Path, trials: int, seed_start
     return detail_df, summary
 
 
-def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None = None, methods: list[str] | None = None, seed_start: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None = None, methods: list[str] | None = None, seed_start: int = 0, workers: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     selected_scenes = scenes or [
@@ -273,7 +302,7 @@ def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None
     ]
     selected_methods = methods or ["M1", "M3", "M4", "M5", "M6", "M7"]
     entries = [{"scene": scene_key, "methods": selected_methods} for scene_key in selected_scenes]
-    detail_df, summary = _run_entries(entries, output_path, trials=trials, seed_start=seed_start)
+    detail_df, summary = _run_entries(entries, output_path, trials=trials, seed_start=seed_start, workers=workers)
 
     for scene_key in selected_scenes:
         scene_df = summary[summary["scene"] == scene_key]
@@ -297,11 +326,11 @@ def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None
     return detail_df, summary
 
 
-def run_group(group_key: str, output_dir: str | Path, trials: int = 10, seed_start: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+def run_group(group_key: str, output_dir: str | Path, trials: int = 10, seed_start: int = 0, workers: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     group = EXPERIMENT_GROUPS[group_key]
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     with (output_path / "group_metadata.json").open("w", encoding="utf-8") as fh:
-        json.dump({"group_key": group_key, "title": group["title"], "entries": group["entries"], "trials": trials, "seed_start": seed_start}, fh, ensure_ascii=False, indent=2)
-    detail_df, summary = _run_entries(group["entries"], output_path, trials=trials, seed_start=seed_start)
+        json.dump({"group_key": group_key, "title": group["title"], "entries": group["entries"], "trials": trials, "seed_start": seed_start, "workers": workers}, fh, ensure_ascii=False, indent=2)
+    detail_df, summary = _run_entries(group["entries"], output_path, trials=trials, seed_start=seed_start, workers=workers)
     return detail_df, summary

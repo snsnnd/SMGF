@@ -26,11 +26,13 @@ def build_parser() -> argparse.ArgumentParser:
     suite_cmd.add_argument("--trials", type=int, default=10)
     suite_cmd.add_argument("--output", type=str, required=True)
     suite_cmd.add_argument("--seed-start", type=int, default=0)
+    suite_cmd.add_argument("--workers", type=int, default=None)
 
     group_cmd = sub.add_parser("run-group", help="Run a restructured experiment group")
     group_cmd.add_argument("--group", choices=sorted(EXPERIMENT_GROUPS.keys()), required=True)
     group_cmd.add_argument("--trials", type=int, default=10)
     group_cmd.add_argument("--seed-start", type=int, default=0)
+    group_cmd.add_argument("--workers", type=int, default=None)
     group_cmd.add_argument("--output", type=str, required=True)
 
     merge_cmd = sub.add_parser("merge-results", help="Merge summary tables into one table")
@@ -42,12 +44,15 @@ def build_parser() -> argparse.ArgumentParser:
     pred_cmd.add_argument("--split", choices=sorted(SEED_SPLITS.keys()), default="tuning")
     pred_cmd.add_argument("--trials", type=int, default=None)
     pred_cmd.add_argument("--seed-start", type=int, default=None)
+    pred_cmd.add_argument("--workers", type=int, default=None)
     pred_cmd.add_argument("--output", type=str, required=True)
 
     phase1_cmd = sub.add_parser("run-phase1", help="Run the Phase-1 experiment bundle with seed splits")
     phase1_cmd.add_argument("--split", choices=sorted(SEED_SPLITS.keys()), default="tuning")
     phase1_cmd.add_argument("--trials", type=int, default=None)
     phase1_cmd.add_argument("--seed-start", type=int, default=None)
+    phase1_cmd.add_argument("--group-workers", type=int, default=None)
+    phase1_cmd.add_argument("--prediction-workers", type=int, default=None)
     phase1_cmd.add_argument("--output", type=str, required=True)
 
     return parser
@@ -67,19 +72,19 @@ def main() -> None:
             json.dump(asdict(result["metrics"]), fh, ensure_ascii=False, indent=2)
         print(json.dumps(asdict(result["metrics"]), ensure_ascii=False, indent=2))
     elif args.command == "run-suite":
-        _, summary = run_suite(args.output, trials=args.trials, seed_start=args.seed_start)
+        _, summary = run_suite(args.output, trials=args.trials, seed_start=args.seed_start, workers=args.workers)
         print(summary.to_string(index=False))
     elif args.command == "run-group":
-        _, summary = run_group(args.group, args.output, trials=args.trials, seed_start=args.seed_start)
+        _, summary = run_group(args.group, args.output, trials=args.trials, seed_start=args.seed_start, workers=args.workers)
         print(summary.to_string(index=False))
     elif args.command == "merge-results":
         merged = merge_summary_tables(Path(args.root), Path(args.output))
         print(merged.to_string(index=False))
     elif args.command == "run-prediction-scan":
-        _, summary = run_prediction_scan(args.scene, Path(args.output), split=args.split, trials=args.trials, seed_start=args.seed_start)
+        _, summary = run_prediction_scan(args.scene, Path(args.output), split=args.split, trials=args.trials, seed_start=args.seed_start, workers=args.workers)
         print(summary.to_string(index=False))
     elif args.command == "run-phase1":
-        produced = run_phase1_bundle(Path(args.output), split=args.split, trials=args.trials, seed_start=args.seed_start)
+        produced = run_phase1_bundle(Path(args.output), split=args.split, trials=args.trials, seed_start=args.seed_start, group_workers=args.group_workers, prediction_workers=args.prediction_workers)
         print(json.dumps(produced, ensure_ascii=False, indent=2))
 
 

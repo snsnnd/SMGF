@@ -1,0 +1,44 @@
+{
+  "group_key": "F_safe_tradeoff",
+  "title": "Group F Safety-Force Tradeoff Verification",
+  "entries": [
+    {
+      "scene": "a3_multi_agent_safety_crossing",
+      "methods": [
+        "M7",
+        "M10"
+      ]
+    },
+    {
+      "scene": "b3_moving_target_open_encirclement",
+      "methods": [
+        "M7",
+        "M10"
+      ]
+    },
+    {
+      "scene": "s4_narrow_passage_easy",
+      "methods": [
+        "M7",
+        "M10"
+      ]
+    },
+    {
+      "scene": "s6_fast_target",
+      "methods": [
+        "M7",
+        "M10"
+      ]
+    },
+    {
+      "scene": "d2_fast_target_single_obstacle",
+      "methods": [
+        "M7",
+        "M10"
+      ]
+    }
+  ],
+  "trials": 30,
+  "seed_start": 10,
+  "workers": 8
+}
