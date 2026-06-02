@@ -43,6 +43,20 @@ Run a restructured experiment group:
 /home/aaa/.local/bin/uv run smgf run-group --group C_pressure_passage --trials 5 --seed-start 0 --output outputs/group_C
 ```
 
+Run the phase-1 bundle with seed splits:
+
+```bash
+/home/aaa/.local/bin/uv run smgf run-phase1 --split tuning --output outputs/phase1_tuning
+/home/aaa/.local/bin/uv run smgf run-phase1 --split validation --output outputs/phase1_validation
+/home/aaa/.local/bin/uv run smgf run-phase1 --split final --output outputs/phase1_final
+```
+
+Run a predictive navigation scan only:
+
+```bash
+/home/aaa/.local/bin/uv run smgf run-prediction-scan --scene s6_fast_target --split tuning --output outputs/d1_scan
+```
+
 Run the legacy flat suite if needed:
 
 ```bash

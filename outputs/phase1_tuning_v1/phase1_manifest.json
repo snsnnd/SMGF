@@ -1,0 +1,12 @@
+{
+  "split": "tuning",
+  "seed_start": 0,
+  "trials": 3,
+  "outputs": {
+    "A_basic_modules": "outputs/phase1_tuning_v1/A_basic_modules",
+    "B_encirclement_geometry": "outputs/phase1_tuning_v1/B_encirclement_geometry",
+    "C_pressure_passage": "outputs/phase1_tuning_v1/C_pressure_passage",
+    "D1_prediction_scan": "outputs/phase1_tuning_v1/D1_prediction_scan",
+    "D2_prediction_scan": "outputs/phase1_tuning_v1/D2_prediction_scan"
+  }
+}

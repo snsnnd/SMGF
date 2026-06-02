@@ -1,0 +1,35 @@
+{
+  "group_key": "C_pressure_passage",
+  "title": "Group C Pressure and Passage Verification",
+  "entries": [
+    {
+      "scene": "s4_narrow_passage_easy",
+      "methods": [
+        "M4",
+        "M5",
+        "M6",
+        "M7"
+      ]
+    },
+    {
+      "scene": "s4_narrow_passage_medium",
+      "methods": [
+        "M4",
+        "M5",
+        "M6",
+        "M7"
+      ]
+    },
+    {
+      "scene": "s4_narrow_passage_hard",
+      "methods": [
+        "M4",
+        "M5",
+        "M6",
+        "M7"
+      ]
+    }
+  ],
+  "trials": 3,
+  "seed_start": 0
+}

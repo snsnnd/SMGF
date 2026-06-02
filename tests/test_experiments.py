@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from smgf.experiments import EXPERIMENT_GROUPS, run_group, run_suite
+from smgf.phase1 import run_phase1_bundle, run_prediction_scan
 
 
 class RunSuiteSmokeTests(unittest.TestCase):
@@ -53,6 +54,27 @@ class RunSuiteSmokeTests(unittest.TestCase):
             self.assertFalse(summary_df.empty)
             self.assertTrue((output_dir / "group_metadata.json").exists())
             self.assertIn("A_basic_modules", EXPERIMENT_GROUPS)
+
+    def test_run_prediction_scan_writes_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "prediction"
+            detail_df, summary_df = run_prediction_scan(
+                scene_key="s6_fast_target",
+                output_dir=output_dir,
+                split="tuning",
+                trials=1,
+                seed_start=0,
+            )
+            self.assertFalse(detail_df.empty)
+            self.assertFalse(summary_df.empty)
+            self.assertTrue((output_dir / "summary_metrics.csv").exists())
+
+    def test_run_phase1_bundle_writes_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "phase1"
+            produced = run_phase1_bundle(output_dir, split="tuning", trials=1, seed_start=0)
+            self.assertIn("A_basic_modules", produced)
+            self.assertTrue((output_dir / "phase1_manifest.json").exists())
 
 
 if __name__ == "__main__":
