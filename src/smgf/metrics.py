@@ -97,7 +97,13 @@ class TrialMetrics:
     path_length: float
     stall_steps: int
     convoy_ratio: float
+    inside_any: bool
     inside_final: bool
+    gmax_success: bool
+    radius_success: bool
+    sigma_success: bool
+    no_collision: bool
+    dwell_success: bool
     radius_error_final: float
     success_geom_final: bool
     success_no_collision: bool
@@ -123,19 +129,19 @@ def evaluate_trial(
     centroid = np.mean(final_positions, axis=0)
     hull = monotonic_chain(final_positions)
     inside = point_in_convex_polygon(final_target, hull)
+    inside_any = any(point_in_convex_polygon(target_hist[k], monotonic_chain(positions_hist[k])) for k in range(len(positions_hist)))
     current_center_error = norm(centroid - final_target)
     predicted_center_error = norm(centroid - final_predicted)
     min_obs = min(min_obstacle_distance(step, eval_obstacles) for step in positions_hist)
     min_agent = min(min_agent_distance(step) for step in positions_hist)
     collisions = min_obs < params.d_obs_safe or min_agent < params.d_agent_safe
     radius_error_final = abs(mean_radius - params.r_c)
-    success_geom_final = (
-        inside
-        and gmax_deg <= params.gmax_threshold_deg
-        and radius_error_final <= params.radius_tolerance
-        and sigma_r2 <= params.sigma_r_threshold
-    )
-    success_no_collision = not collisions
+    gmax_success = gmax_deg <= params.gmax_threshold_deg
+    radius_success = radius_error_final <= params.radius_tolerance
+    sigma_success = sigma_r2 <= params.sigma_r_threshold
+    success_geom_final = inside and gmax_success and radius_success and sigma_success
+    no_collision = not collisions
+    success_no_collision = no_collision
     gmax_reach_time = params.horizon
     if len(final_positions) > 1:
         for k in range(len(positions_hist)):
@@ -155,11 +161,13 @@ def evaluate_trial(
 
     success = False
     completion_time = params.horizon
+    dwell_success = False
     if scenario.success_mode == "goal_reach":
         success_steps = np.linalg.norm(positions_hist[:, 0, :] - target_hist, axis=1) < 0.8
-        if np.any(success_steps) and not collisions:
+        dwell_success = bool(np.any(success_steps))
+        if dwell_success:
             completion_time = float(np.argmax(success_steps) * dt)
-            success = True
+            success = no_collision
     elif scenario.success_mode == "encirclement":
         dwell_steps = max(1, int(1.0 / dt))
         streak = 0
@@ -173,8 +181,9 @@ def evaluate_trial(
             if inside_k and gmax_k <= params.gmax_threshold_deg and abs(mean_r_k - params.r_c) <= params.radius_tolerance and sigma_r_k <= params.sigma_r_threshold:
                 streak += 1
                 if streak >= dwell_steps:
+                    dwell_success = True
                     completion_time = float((k - dwell_steps + 1) * dt)
-                    success = not collisions
+                    success = no_collision
                     break
             else:
                 streak = 0
@@ -186,17 +195,19 @@ def evaluate_trial(
             if np.all(positions_hist[k, :, 0] > threshold):
                 streak += 1
                 if streak >= dwell_steps:
+                    dwell_success = True
                     completion_time = float((k - dwell_steps + 1) * dt)
-                    success = not collisions
+                    success = no_collision
                     break
             else:
                 streak = 0
     elif scenario.success_mode == "target_track":
         distances = np.mean(np.linalg.norm(positions_hist - target_hist[:, None, :], axis=2), axis=1)
         mask = distances < params.r_c
-        if np.any(mask) and not collisions:
+        dwell_success = bool(np.any(mask))
+        if dwell_success:
             completion_time = float(np.argmax(mask) * dt)
-            success = True
+            success = no_collision
 
     return TrialMetrics(
         success=success,
@@ -215,7 +226,13 @@ def evaluate_trial(
         path_length=path_length,
         stall_steps=stall_steps,
         convoy_ratio=convoy_ratio,
+        inside_any=inside_any,
         inside_final=inside,
+        gmax_success=gmax_success,
+        radius_success=radius_success,
+        sigma_success=sigma_success,
+        no_collision=no_collision,
+        dwell_success=dwell_success,
         radius_error_final=radius_error_final,
         success_geom_final=success_geom_final,
         success_no_collision=success_no_collision,
