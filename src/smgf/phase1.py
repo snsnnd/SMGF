@@ -56,6 +56,15 @@ PHASE1_PLOT_BUNDLE = [
         "params_override": {},
     },
     {
+        "figure_key": "C_medium_original_m7",
+        "group": "C",
+        "scene": "s4_narrow_passage_medium",
+        "method": "M7",
+        "seed": 10,
+        "notes": "Medium corridor original SMGF failure-mode trajectory.",
+        "params_override": {},
+    },
+    {
         "figure_key": "C_medium_sp_smgf",
         "group": "C",
         "scene": "s4_narrow_passage_medium",

@@ -205,20 +205,22 @@ def plot_phase1_figures(repo_root: Path, data_root: Path, output_root: Path) -> 
     plt.close(fig)
 
     # C trajectory comparison with highlighted regions and zoomed views
-    fig = plt.figure(figsize=(14, 8))
-    gs = fig.add_gridspec(2, 4, height_ratios=[2.0, 1.1])
+    fig = plt.figure(figsize=(18, 8))
+    gs = fig.add_gridspec(2, 6, height_ratios=[2.0, 1.1])
     ax_c_left = fig.add_subplot(gs[0, 0:2])
-    ax_c_right = fig.add_subplot(gs[0, 2:4])
-    ax_zoom_a = fig.add_subplot(gs[1, 0:2])
-    ax_zoom_b = fig.add_subplot(gs[1, 2:4])
+    ax_c_mid = fig.add_subplot(gs[0, 2:4])
+    ax_c_right = fig.add_subplot(gs[0, 4:6])
+    ax_zoom_a = fig.add_subplot(gs[1, 0:3])
+    ax_zoom_b = fig.add_subplot(gs[1, 3:6])
 
     _plot_trajectory(ax_c_left, case_map["C_medium_fixed_topo"], "C2 medium | M4 fixed-topo")
+    _plot_trajectory(ax_c_mid, case_map["C_medium_original_m7"], "C2 medium | original M7")
     _plot_trajectory(ax_c_right, case_map["C_medium_sp_smgf"], "C2 medium | SP-SMGF")
     ax_c_right.legend(loc="best", fontsize=8)
 
     zoom_a = ((-0.6, 4.8), (-2.2, 2.2))
     zoom_b = ((4.2, 8.8), (-1.8, 1.8))
-    for ax in [ax_c_left, ax_c_right]:
+    for ax in [ax_c_left, ax_c_mid, ax_c_right]:
         rect_a = Rectangle((zoom_a[0][0], zoom_a[1][0]), zoom_a[0][1] - zoom_a[0][0], zoom_a[1][1] - zoom_a[1][0], fill=False, linestyle='--', linewidth=1.2, edgecolor='tab:red')
         rect_b = Rectangle((zoom_b[0][0], zoom_b[1][0]), zoom_b[0][1] - zoom_b[0][0], zoom_b[1][1] - zoom_b[1][0], fill=False, linestyle='--', linewidth=1.2, edgecolor='tab:purple')
         ax.add_patch(rect_a)
@@ -226,8 +228,8 @@ def plot_phase1_figures(repo_root: Path, data_root: Path, output_root: Path) -> 
         ax.text(zoom_a[0][0], zoom_a[1][1] + 0.12, 'A', color='tab:red', fontsize=10, fontweight='bold')
         ax.text(zoom_b[0][0], zoom_b[1][1] + 0.12, 'B', color='tab:purple', fontsize=10, fontweight='bold')
 
-    _plot_zoomed_trajectory(ax_zoom_a, case_map["C_medium_sp_smgf"], zoom_a[0], zoom_a[1], "Zoom A: corridor entry")
-    _plot_zoomed_trajectory(ax_zoom_b, case_map["C_medium_sp_smgf"], zoom_b[0], zoom_b[1], "Zoom B: high-pressure corridor segment")
+    _plot_zoomed_trajectory(ax_zoom_a, case_map["C_medium_original_m7"], zoom_a[0], zoom_a[1], "Zoom A: original M7 at corridor entry")
+    _plot_zoomed_trajectory(ax_zoom_b, case_map["C_medium_sp_smgf"], zoom_b[0], zoom_b[1], "Zoom B: SP-SMGF in high-pressure segment")
     fig.tight_layout()
     fig.savefig(output_root / "C_medium_trajectory_compare.png", dpi=200)
     plt.close(fig)

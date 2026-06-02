@@ -34,6 +34,14 @@
       "path": "data/phase1/C/C_medium_fixed_topo"
     },
     {
+      "figure_key": "C_medium_original_m7",
+      "group": "C",
+      "scene": "s4_narrow_passage_medium",
+      "method": "M7",
+      "seed": 10,
+      "path": "data/phase1/C/C_medium_original_m7"
+    },
+    {
       "figure_key": "C_medium_sp_smgf",
       "group": "C",
       "scene": "s4_narrow_passage_medium",
