@@ -7,6 +7,7 @@ from pathlib import Path
 
 from .core import default_methods
 from .experiments import EXPERIMENT_GROUPS, METHOD_LIBRARY, SCENARIOS, _plot_trial, run_group, run_scene_trial, run_suite
+from .merge_results import merge_summary_tables
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -31,6 +32,10 @@ def build_parser() -> argparse.ArgumentParser:
     group_cmd.add_argument("--seed-start", type=int, default=0)
     group_cmd.add_argument("--output", type=str, required=True)
 
+    merge_cmd = sub.add_parser("merge-results", help="Merge summary tables into one table")
+    merge_cmd.add_argument("--root", type=str, default="outputs")
+    merge_cmd.add_argument("--output", type=str, default="outputs/merged_summary_metrics.csv")
+
     return parser
 
 
@@ -53,6 +58,9 @@ def main() -> None:
     elif args.command == "run-group":
         _, summary = run_group(args.group, args.output, trials=args.trials, seed_start=args.seed_start)
         print(summary.to_string(index=False))
+    elif args.command == "merge-results":
+        merged = merge_summary_tables(Path(args.root), Path(args.output))
+        print(merged.to_string(index=False))
 
 
 if __name__ == "__main__":
