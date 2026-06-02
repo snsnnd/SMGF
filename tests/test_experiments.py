@@ -25,6 +25,8 @@ class RunSuiteSmokeTests(unittest.TestCase):
             self.assertTrue((output_dir / "summary_metrics.json").exists())
 
             expected_columns = {
+                "obs_collision_rate",
+                "agent_collision_rate",
                 "inside_any_rate",
                 "inside_final_rate",
                 "gmax_success_rate",
@@ -32,6 +34,8 @@ class RunSuiteSmokeTests(unittest.TestCase):
                 "sigma_success_rate",
                 "no_collision_rate",
                 "dwell_success_rate",
+                "dwell_success_no_collision_rate",
+                "time_to_full_geom_mean",
             }
             self.assertTrue(expected_columns.issubset(summary_df.columns))
 

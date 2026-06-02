@@ -54,8 +54,10 @@ class EvaluateTrialSmokeTests(unittest.TestCase):
 
         self.assertFalse(original_metrics.collisions)
         self.assertTrue(original_metrics.no_collision)
+        self.assertFalse(original_metrics.obs_collision)
         self.assertTrue(jittered_metrics.collisions)
         self.assertFalse(jittered_metrics.no_collision)
+        self.assertTrue(jittered_metrics.obs_collision)
         self.assertGreater(original_metrics.min_obs_distance, params.d_obs_safe)
         self.assertLess(jittered_metrics.min_obs_distance, params.d_obs_safe)
 
@@ -81,8 +83,11 @@ class EvaluateTrialSmokeTests(unittest.TestCase):
         self.assertTrue(metrics.sigma_success)
         self.assertTrue(metrics.no_collision)
         self.assertTrue(metrics.dwell_success)
+        self.assertTrue(metrics.dwell_success_no_collision)
         self.assertIsInstance(metrics.inside_any, bool)
         self.assertIsInstance(metrics.inside_final, bool)
+        self.assertGreaterEqual(metrics.time_to_gmax, 0.0)
+        self.assertGreaterEqual(metrics.success_hold_time, 0.0)
 
 
 if __name__ == "__main__":

@@ -103,11 +103,61 @@ class TrialMetrics:
     radius_success: bool
     sigma_success: bool
     no_collision: bool
+    obs_collision: bool
+    agent_collision: bool
     dwell_success: bool
+    dwell_geom_success: bool
+    dwell_success_no_collision: bool
     radius_error_final: float
     success_geom_final: bool
     success_no_collision: bool
     gmax_reach_time: float
+    time_to_inside: float
+    time_to_gmax: float
+    time_to_radius: float
+    time_to_full_geom: float
+    success_hold_time: float
+    post_success_violation_count: int
+    last_10s_gmax_mean: float
+    last_10s_radius_error_mean: float
+    last_10s_inside_rate: float
+
+
+def _first_true_time(mask: np.ndarray, dt: float, default: float) -> float:
+    if np.any(mask):
+        return float(np.argmax(mask) * dt)
+    return default
+
+
+def _dwell_start(mask: np.ndarray, dwell_steps: int) -> int | None:
+    streak = 0
+    for idx, is_true in enumerate(mask):
+        if is_true:
+            streak += 1
+            if streak >= dwell_steps:
+                return idx - dwell_steps + 1
+        else:
+            streak = 0
+    return None
+
+
+def _hold_stats(mask: np.ndarray, start_idx: int | None, dt: float) -> tuple[float, int]:
+    if start_idx is None:
+        return 0.0, 0
+    hold_steps = 0
+    idx = start_idx
+    while idx < len(mask) and mask[idx]:
+        hold_steps += 1
+        idx += 1
+    violation_count = 0
+    in_violation = False
+    for is_true in mask[idx:]:
+        if not is_true and not in_violation:
+            violation_count += 1
+            in_violation = True
+        elif is_true:
+            in_violation = False
+    return float(hold_steps * dt), violation_count
 
 
 def evaluate_trial(
@@ -121,34 +171,64 @@ def evaluate_trial(
     obstacles: list[Obstacle] | None = None,
 ) -> TrialMetrics:
     eval_obstacles = scenario.obstacles if obstacles is None else obstacles
+    steps = len(positions_hist)
     final_positions = positions_hist[-1]
     final_target = target_hist[-1]
     final_predicted = predicted_target_hist[-1]
-    mean_radius, sigma_r2 = radius_stats(final_positions, final_target)
-    gmax_deg = np.degrees(max_angle_gap(final_positions, final_target)) if len(final_positions) > 1 else 0.0
+    inside_series = np.zeros(steps, dtype=bool)
+    gmax_deg_series = np.zeros(steps)
+    mean_radius_series = np.zeros(steps)
+    sigma_series = np.zeros(steps)
+    radius_error_series = np.zeros(steps)
+    obs_distance_series = np.zeros(steps)
+    agent_distance_series = np.zeros(steps)
+    obs_collision_series = np.zeros(steps, dtype=bool)
+    agent_collision_series = np.zeros(steps, dtype=bool)
+    for k in range(steps):
+        step_positions = positions_hist[k]
+        step_target = target_hist[k]
+        hull_k = monotonic_chain(step_positions)
+        inside_series[k] = point_in_convex_polygon(step_target, hull_k)
+        gmax_deg_series[k] = np.degrees(max_angle_gap(step_positions, step_target)) if len(step_positions) > 1 else 0.0
+        mean_r_k, sigma_r_k = radius_stats(step_positions, step_target)
+        mean_radius_series[k] = mean_r_k
+        sigma_series[k] = sigma_r_k
+        radius_error_series[k] = abs(mean_r_k - params.r_c)
+        obs_distance_series[k] = min_obstacle_distance(step_positions, eval_obstacles)
+        agent_distance_series[k] = min_agent_distance(step_positions)
+        obs_collision_series[k] = obs_distance_series[k] < params.d_obs_safe
+        agent_collision_series[k] = agent_distance_series[k] < params.d_agent_safe if params.d_agent_safe > 0 else False
+
+    mean_radius = float(mean_radius_series[-1])
+    sigma_r2 = float(sigma_series[-1])
+    gmax_deg = float(gmax_deg_series[-1])
     centroid = np.mean(final_positions, axis=0)
     hull = monotonic_chain(final_positions)
     inside = point_in_convex_polygon(final_target, hull)
-    inside_any = any(point_in_convex_polygon(target_hist[k], monotonic_chain(positions_hist[k])) for k in range(len(positions_hist)))
+    inside_any = bool(np.any(inside_series))
     current_center_error = norm(centroid - final_target)
     predicted_center_error = norm(centroid - final_predicted)
-    min_obs = min(min_obstacle_distance(step, eval_obstacles) for step in positions_hist)
-    min_agent = min(min_agent_distance(step) for step in positions_hist)
-    collisions = min_obs < params.d_obs_safe or min_agent < params.d_agent_safe
-    radius_error_final = abs(mean_radius - params.r_c)
+    min_obs = float(np.min(obs_distance_series))
+    min_agent = float(np.min(agent_distance_series))
+    obs_collision = bool(np.any(obs_collision_series))
+    agent_collision = bool(np.any(agent_collision_series))
+    collisions = obs_collision or agent_collision
+    radius_error_final = float(radius_error_series[-1])
     gmax_success = gmax_deg <= params.gmax_threshold_deg
     radius_success = radius_error_final <= params.radius_tolerance
     sigma_success = sigma_r2 <= params.sigma_r_threshold
     success_geom_final = inside and gmax_success and radius_success and sigma_success
     no_collision = not collisions
     success_no_collision = no_collision
-    gmax_reach_time = params.horizon
-    if len(final_positions) > 1:
-        for k in range(len(positions_hist)):
-            gmax_k = np.degrees(max_angle_gap(positions_hist[k], target_hist[k]))
-            if gmax_k <= 120.0:
-                gmax_reach_time = float(k * dt)
-                break
+    gmax_success_series = gmax_deg_series <= params.gmax_threshold_deg
+    radius_success_series = radius_error_series <= params.radius_tolerance
+    sigma_success_series = sigma_series <= params.sigma_r_threshold
+    geom_success_series = inside_series & gmax_success_series & radius_success_series & sigma_success_series
+    time_to_inside = _first_true_time(inside_series, dt, params.horizon)
+    time_to_gmax = _first_true_time(gmax_success_series, dt, params.horizon)
+    time_to_radius = _first_true_time(radius_success_series, dt, params.horizon)
+    time_to_full_geom = _first_true_time(geom_success_series, dt, params.horizon)
+    gmax_reach_time = time_to_gmax
     control_cost = float(np.sum(np.linalg.norm(u_hist, axis=2) ** 2) * dt)
     control_delta = np.diff(u_hist, axis=0)
     control_smoothness = float(np.sum(np.linalg.norm(control_delta, axis=2) ** 2)) if len(control_delta) else 0.0
@@ -158,56 +238,55 @@ def evaluate_trial(
     stall_steps = int(np.sum(np.mean(speed_hist, axis=1) < 0.05))
     angles = np.arctan2(final_positions[:, 1] - final_target[1], final_positions[:, 0] - final_target[0]) if len(final_positions) else np.array([0.0])
     convoy_ratio = float(np.ptp(angles) < np.pi)
+    tail_steps = max(1, int(10.0 / dt))
+    last_slice = slice(max(0, steps - tail_steps), steps)
+    last_10s_gmax_mean = float(np.mean(gmax_deg_series[last_slice]))
+    last_10s_radius_error_mean = float(np.mean(radius_error_series[last_slice]))
+    last_10s_inside_rate = float(np.mean(inside_series[last_slice]))
 
     success = False
     completion_time = params.horizon
     dwell_success = False
+    dwell_geom_success = False
+    dwell_start_idx: int | None = None
     if scenario.success_mode == "goal_reach":
-        success_steps = np.linalg.norm(positions_hist[:, 0, :] - target_hist, axis=1) < 0.8
-        dwell_success = bool(np.any(success_steps))
-        if dwell_success:
-            completion_time = float(np.argmax(success_steps) * dt)
-            success = no_collision
+        base_success_series = np.linalg.norm(positions_hist[:, 0, :] - target_hist, axis=1) < 0.8
+        dwell_start_idx = _dwell_start(base_success_series, 1)
+        dwell_success = dwell_start_idx is not None
+        dwell_geom_success = dwell_success
     elif scenario.success_mode == "encirclement":
         dwell_steps = max(1, int(1.0 / dt))
-        streak = 0
-        for k in range(len(positions_hist)):
-            step_positions = positions_hist[k]
-            step_target = target_hist[k]
-            hull_k = monotonic_chain(step_positions)
-            inside_k = point_in_convex_polygon(step_target, hull_k)
-            gmax_k = np.degrees(max_angle_gap(step_positions, step_target))
-            mean_r_k, sigma_r_k = radius_stats(step_positions, step_target)
-            if inside_k and gmax_k <= params.gmax_threshold_deg and abs(mean_r_k - params.r_c) <= params.radius_tolerance and sigma_r_k <= params.sigma_r_threshold:
-                streak += 1
-                if streak >= dwell_steps:
-                    dwell_success = True
-                    completion_time = float((k - dwell_steps + 1) * dt)
-                    success = no_collision
-                    break
-            else:
-                streak = 0
+        dwell_start_idx = _dwell_start(geom_success_series, dwell_steps)
+        dwell_success = dwell_start_idx is not None
+        dwell_geom_success = dwell_success
     elif scenario.success_mode == "corridor_pass":
         threshold = scenario.corridor_exit_x if scenario.corridor_exit_x is not None else 0.0
         dwell_steps = max(1, int(0.5 / dt))
-        streak = 0
-        for k in range(len(positions_hist)):
-            if np.all(positions_hist[k, :, 0] > threshold):
-                streak += 1
-                if streak >= dwell_steps:
-                    dwell_success = True
-                    completion_time = float((k - dwell_steps + 1) * dt)
-                    success = no_collision
-                    break
-            else:
-                streak = 0
+        base_success_series = np.all(positions_hist[:, :, 0] > threshold, axis=1)
+        dwell_start_idx = _dwell_start(base_success_series, dwell_steps)
+        dwell_success = dwell_start_idx is not None
+        dwell_geom_success = dwell_success
     elif scenario.success_mode == "target_track":
         distances = np.mean(np.linalg.norm(positions_hist - target_hist[:, None, :], axis=2), axis=1)
-        mask = distances < params.r_c
-        dwell_success = bool(np.any(mask))
-        if dwell_success:
-            completion_time = float(np.argmax(mask) * dt)
-            success = no_collision
+        base_success_series = distances < params.r_c
+        dwell_start_idx = _dwell_start(base_success_series, 1)
+        dwell_success = dwell_start_idx is not None
+        dwell_geom_success = dwell_success
+
+    if dwell_start_idx is not None:
+        completion_time = float(dwell_start_idx * dt)
+    dwell_success_no_collision = dwell_success and no_collision
+    success = dwell_success_no_collision
+    if scenario.success_mode == "encirclement":
+        hold_mask = geom_success_series
+    elif scenario.success_mode == "corridor_pass":
+        threshold = scenario.corridor_exit_x if scenario.corridor_exit_x is not None else 0.0
+        hold_mask = np.all(positions_hist[:, :, 0] > threshold, axis=1)
+    elif scenario.success_mode == "goal_reach":
+        hold_mask = np.linalg.norm(positions_hist[:, 0, :] - target_hist, axis=1) < 0.8
+    else:
+        hold_mask = np.mean(np.linalg.norm(positions_hist - target_hist[:, None, :], axis=2), axis=1) < params.r_c
+    success_hold_time, post_success_violation_count = _hold_stats(hold_mask, dwell_start_idx, dt)
 
     return TrialMetrics(
         success=success,
@@ -232,9 +311,22 @@ def evaluate_trial(
         radius_success=radius_success,
         sigma_success=sigma_success,
         no_collision=no_collision,
+        obs_collision=obs_collision,
+        agent_collision=agent_collision,
         dwell_success=dwell_success,
+        dwell_geom_success=dwell_geom_success,
+        dwell_success_no_collision=dwell_success_no_collision,
         radius_error_final=radius_error_final,
         success_geom_final=success_geom_final,
         success_no_collision=success_no_collision,
         gmax_reach_time=gmax_reach_time,
+        time_to_inside=time_to_inside,
+        time_to_gmax=time_to_gmax,
+        time_to_radius=time_to_radius,
+        time_to_full_geom=time_to_full_geom,
+        success_hold_time=success_hold_time,
+        post_success_violation_count=post_success_violation_count,
+        last_10s_gmax_mean=last_10s_gmax_mean,
+        last_10s_radius_error_mean=last_10s_radius_error_mean,
+        last_10s_inside_rate=last_10s_inside_rate,
     )

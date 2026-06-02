@@ -60,12 +60,17 @@ def main() -> None:
         .agg(
             success_rate=("success", "mean"),
             collision_rate=("collisions", "mean"),
+            obs_collision_rate=("obs_collision", "mean"),
+            agent_collision_rate=("agent_collision", "mean"),
             completion_time_mean=("completion_time", "mean"),
             current_center_error_mean=("current_center_error", "mean"),
             predicted_center_error_mean=("predicted_center_error", "mean"),
             input_sat_mean=("input_saturation_ratio", "mean"),
             gmax_mean=("max_angle_gap_deg", "mean"),
             gmax_reach_time_mean=("gmax_reach_time", "mean"),
+            time_to_gmax_mean=("time_to_gmax", "mean"),
+            time_to_radius_mean=("time_to_radius", "mean"),
+            time_to_full_geom_mean=("time_to_full_geom", "mean"),
         )
         .reset_index()
         .sort_values(

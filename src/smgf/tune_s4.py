@@ -36,6 +36,8 @@ def _summarize(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
         .agg(
             success_rate=("success", "mean"),
             collision_rate=("collisions", "mean"),
+            obs_collision_rate=("obs_collision", "mean"),
+            agent_collision_rate=("agent_collision", "mean"),
             completion_time_mean=("completion_time", "mean"),
             min_obs_distance_mean=("min_obs_distance", "mean"),
             min_agent_distance_mean=("min_agent_distance", "mean"),
@@ -51,14 +53,34 @@ def _summarize(df: pd.DataFrame, keys: list[str]) -> pd.DataFrame:
             sigma_success_rate=("sigma_success", "mean"),
             no_collision_rate=("no_collision", "mean"),
             dwell_success_rate=("dwell_success", "mean"),
+            dwell_geom_success_rate=("dwell_geom_success", "mean"),
+            dwell_success_no_collision_rate=("dwell_success_no_collision", "mean"),
+            radius_error_final_mean=("radius_error_final", "mean"),
             success_geom_final_rate=("success_geom_final", "mean"),
             gmax_reach_time_mean=("gmax_reach_time", "mean"),
+            time_to_inside_mean=("time_to_inside", "mean"),
+            time_to_gmax_mean=("time_to_gmax", "mean"),
+            time_to_radius_mean=("time_to_radius", "mean"),
+            time_to_full_geom_mean=("time_to_full_geom", "mean"),
+            success_hold_time_mean=("success_hold_time", "mean"),
+            post_success_violation_count_mean=("post_success_violation_count", "mean"),
+            last_10s_gmax_mean=("last_10s_gmax_mean", "mean"),
+            last_10s_radius_error_mean=("last_10s_radius_error_mean", "mean"),
+            last_10s_inside_rate_mean=("last_10s_inside_rate", "mean"),
         )
         .reset_index()
     )
     return summary.sort_values(
-        by=["success_rate", "collision_rate"],
-        ascending=[False, True],
+        by=[
+            "success_rate",
+            "collision_rate",
+            "obs_collision_rate",
+            "agent_collision_rate",
+            "completion_time_mean",
+            "input_sat_mean",
+            "control_smoothness_mean",
+        ],
+        ascending=[False, True, True, True, True, True, True],
     )
 
 
@@ -67,19 +89,22 @@ def main() -> None:
     parser.add_argument("--trials", type=int, default=int(os.environ.get("SMGF_TUNE_S4_TRIALS", "10")))
     parser.add_argument("--output", type=Path, default=Path(os.environ.get("SMGF_TUNE_S4_OUTPUT", "outputs/tune_s4")))
     parser.add_argument("--workers", type=int, default=int(os.environ.get("SMGF_TUNE_S4_WORKERS", str(os.cpu_count() or 1))))
+    parser.add_argument("--scene", type=str, default=os.environ.get("SMGF_TUNE_S4_SCENE", "s4_narrow_passage_easy"))
     args = parser.parse_args()
 
-    scene_key = "s4_narrow_passage"
+    scene_key = args.scene
     method_key = "M7"
     output_dir = args.output
     output_dir.mkdir(parents=True, exist_ok=True)
 
     grid = {
         "eta_min": [0.05, 0.1, 0.2],
-        "sigma_omega": [3.0, 5.0, 8.0],
+        "sigma_omega": [3.0, 5.0, 8.0, 12.0],
         "k_t": [0.6, 0.9, 1.2],
         "r0": [1.2, 1.5, 1.8],
         "lambda_curl": [0.3, 0.5, 0.7],
+        "d_agent_safe": [0.35, 0.45, 0.55],
+        "k_s": [2.0, 3.0, 4.0],
     }
 
     keys = list(grid.keys())
