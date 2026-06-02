@@ -89,6 +89,89 @@ def _plot_zoomed_trajectory(ax, case: dict, xlim: tuple[float, float], ylim: tup
     ax.grid(True, alpha=0.2)
 
 
+def _min_agent_distance_series(case: dict) -> pd.DataFrame:
+    metadata = case["metadata"]
+    trajectory = _truncate_by_time(case["trajectory"], metadata["recommended_plot_end_time"])
+    rows = []
+    for step, group in trajectory.groupby("step"):
+        coords = group[["x", "y"]].to_numpy()
+        min_dist = float("inf")
+        for i in range(len(coords)):
+            for j in range(i + 1, len(coords)):
+                dij = float(np.linalg.norm(coords[i] - coords[j]))
+                min_dist = min(min_dist, dij)
+        rows.append({"step": step, "time": float(group.iloc[0]["time"]), "min_agent_distance": min_dist})
+    return pd.DataFrame(rows)
+
+
+def _plot_min_distance_time_series(output_root: Path, case_map: dict) -> None:
+    mapping = [
+        ("M4", case_map["C_medium_fixed_topo"], "tab:blue"),
+        ("original M7", case_map["C_medium_original_m7"], "tab:orange"),
+        ("SP-SMGF", case_map["C_medium_sp_smgf"], "tab:green"),
+    ]
+    fig, ax = plt.subplots(figsize=(8, 4.5))
+    for label, case, color in mapping:
+        series = _min_agent_distance_series(case)
+        ax.plot(series["time"], series["min_agent_distance"], label=label, color=color, linewidth=1.6)
+    d_safe = case_map["C_medium_sp_smgf"]["metadata"]["params"]["d_agent_safe"]
+    ax.axhline(d_safe, color="tab:red", linestyle="--", linewidth=1.2, label="d_agent_safe")
+    ax.set_title("C2 medium | minimum inter-agent distance over time")
+    ax.set_xlabel("time [s]")
+    ax.set_ylabel("min agent distance")
+    ax.grid(True, alpha=0.2)
+    ax.legend(loc="best", fontsize=8)
+    fig.tight_layout()
+    fig.savefig(output_root / "C_medium_min_distance_timeseries.png", dpi=200)
+    plt.close(fig)
+
+
+def _plot_snapshot(ax, case: dict, snapshot_time: float, title: str) -> None:
+    trajectory = case["trajectory"]
+    target = case["target"]
+    obstacles = case["obstacles"]
+    snapshot = trajectory.iloc[(trajectory["time"] - snapshot_time).abs().argsort()].groupby("agent").head(1).sort_values("agent")
+    target_row = target.iloc[(target["time"] - snapshot_time).abs().argsort()].iloc[0]
+
+    for _, obs in obstacles.iterrows():
+        circle = plt.Circle((obs["center_x"], obs["center_y"]), obs["radius"], color="gray", alpha=0.25)
+        ax.add_patch(circle)
+
+    ax.scatter(snapshot["x"], snapshot["y"], s=38, color="tab:blue", zorder=3)
+    for _, row in snapshot.iterrows():
+        ax.text(row["x"], row["y"] + 0.08, f"{int(row['agent'])}", fontsize=8, ha="center")
+
+    center = np.array([target_row["target_x"], target_row["target_y"]], dtype=float)
+    snapshot = snapshot.copy()
+    snapshot["angle"] = np.mod(np.arctan2(snapshot["y"] - center[1], snapshot["x"] - center[0]), 2 * np.pi)
+    snapshot = snapshot.sort_values("angle")
+    ring_x = snapshot["x"].tolist() + [snapshot.iloc[0]["x"]]
+    ring_y = snapshot["y"].tolist() + [snapshot.iloc[0]["y"]]
+    ax.plot(ring_x, ring_y, color="tab:purple", linestyle="-.", linewidth=1.4)
+
+    ax.scatter([target_row["target_x"]], [target_row["target_y"]], color="black", s=50, marker="*", zorder=4)
+    ax.set_title(title)
+    ax.set_aspect("equal")
+    ax.grid(True, alpha=0.2)
+
+
+def _plot_c_snapshot_comparison(output_root: Path, case_map: dict) -> None:
+    original_state = case_map["C_medium_original_m7"]["state"]
+    mean_omega = original_state.groupby("time")["omega"].mean().reset_index()
+    snapshot_time = float(mean_omega.loc[mean_omega["omega"].idxmax(), "time"])
+    mapping = [
+        ("M4 fixed-topo", case_map["C_medium_fixed_topo"]),
+        ("original M7", case_map["C_medium_original_m7"]),
+        ("SP-SMGF", case_map["C_medium_sp_smgf"]),
+    ]
+    fig, axes = plt.subplots(1, 3, figsize=(14, 4.5))
+    for ax, (label, case) in zip(axes, mapping):
+        _plot_snapshot(ax, case, snapshot_time, f"{label} @ t={snapshot_time:.2f}s")
+    fig.tight_layout()
+    fig.savefig(output_root / "C_medium_snapshot_compare.png", dpi=200)
+    plt.close(fig)
+
+
 def _plot_state_curves(axs, case: dict, title: str) -> None:
     metadata = case["metadata"]
     state = _truncate_by_time(case["state"], metadata["recommended_plot_end_time"])
@@ -258,3 +341,5 @@ def plot_phase1_figures(repo_root: Path, data_root: Path, output_root: Path) -> 
 
     _plot_c_group_bar(repo_root / "outputs", output_root)
     _plot_d1_trend(repo_root / "outputs", output_root)
+    _plot_min_distance_time_series(output_root, case_map)
+    _plot_c_snapshot_comparison(output_root, case_map)
