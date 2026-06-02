@@ -1,0 +1,30 @@
+[
+  {
+    "scene": "s4_narrow_passage_medium",
+    "method": "M6",
+    "success_rate": 0.0,
+    "collision_rate": 1.0,
+    "obs_collision_rate": 0.0,
+    "agent_collision_rate": 1.0,
+    "min_obs_distance_mean": 0.6564506328613361,
+    "min_agent_distance_mean": 0.26347534176432774,
+    "completion_time_mean": 16.725,
+    "input_sat_mean": 0.060264946594534616,
+    "control_cost_mean": 102.95654773843164,
+    "control_smoothness_mean": 1436.1679917746578
+  },
+  {
+    "scene": "s4_narrow_passage_medium",
+    "method": "M7",
+    "success_rate": 0.0,
+    "collision_rate": 1.0,
+    "obs_collision_rate": 0.0,
+    "agent_collision_rate": 1.0,
+    "min_obs_distance_mean": 0.9347889893879954,
+    "min_agent_distance_mean": 0.26698090652347706,
+    "completion_time_mean": 17.741666666666667,
+    "input_sat_mean": 0.03275766403107227,
+    "control_cost_mean": 100.73996337159392,
+    "control_smoothness_mean": 1411.6806235246584
+  }
+]

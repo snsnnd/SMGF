@@ -71,6 +71,10 @@ class Params:
     eta_min: float = 0.2
     sigma_omega: float = 3.0
     q_psi: float = 2.0
+    topo_rho_floor: float = 0.0
+    topo_floor_on_threshold: float = 0.35
+    topo_floor_off_threshold: float = 0.2
+    topo_floor_release_tau: float = 1.0
     tau_omega: float = 0.5
     t_pred: float = 0.7
     t_pred_max: float = 1.5
@@ -140,6 +144,7 @@ class SMGFController:
         self.params = params
         self.method = method
         self.prev_sep = np.tile(np.array([1.0, 0.0]), (n_agents, n_agents, 1))
+        self.topo_floor_state = np.zeros(n_agents)
         self.prev_curl_sign = np.array(
             [params.default_curl_sign if i % 2 == 0 else -params.default_curl_sign for i in range(n_agents)],
             dtype=float,
@@ -306,7 +311,19 @@ class SMGFController:
                 rho[i] = 1.0
             else:
                 rho[i] = eta * d_val
-            total_topo = topo if self.method.force_rho_one else rho[i] * topo
+            if self.method.force_rho_one:
+                total_topo = topo
+            else:
+                topo_floor = self.topo_floor_state[i]
+                if self.params.topo_rho_floor > 0.0:
+                    if omega[i] >= self.params.topo_floor_on_threshold:
+                        topo_floor = self.params.topo_rho_floor
+                    elif omega[i] <= self.params.topo_floor_off_threshold:
+                        release_alpha = min(1.0, self.params.dt / max(self.params.topo_floor_release_tau, self.params.dt))
+                        topo_floor = (1.0 - release_alpha) * topo_floor
+                self.topo_floor_state[i] = topo_floor
+                topo_scale = topo_floor + (1.0 - topo_floor) * rho[i]
+                total_topo = topo_scale * topo
             raw = (nav + rep + curl + safe + total_topo + enc + ang) / self.params.gamma_d
             u[i] = smooth_bound(raw, self.params.u_max)
 

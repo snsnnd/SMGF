@@ -137,7 +137,7 @@ def build_scenarios() -> dict[str, Scenario]:
         obstacles=obstacles_s4_easy,
         initial_positions=np.array([[-6.0, -1.8], [-6.0, -1.1], [-6.0, -0.4], [-6.0, 0.3], [-6.0, 1.0], [-6.0, 1.7]]),
         target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
-        params=replace(base, horizon=32.0, k_r=0.0, k_t=0.9, r0=1.5, eta_min=0.05, sigma_omega=8.0, d_agent_safe=0.28, d_obs_safe=0.25, k_s=4.0),
+        params=replace(base, horizon=32.0, k_r=0.0, k_t=0.9, r0=1.5, eta_min=0.05, sigma_omega=8.0, d_agent_safe=0.28, d_obs_safe=0.25, k_s=4.0, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
         success_mode="corridor_pass",
         corridor_exit_x=5.2,
     )
@@ -149,7 +149,7 @@ def build_scenarios() -> dict[str, Scenario]:
         obstacles=obstacles_s4_medium,
         initial_positions=np.array([[-6.0, -1.5], [-6.1, -0.9], [-6.0, -0.3], [-6.0, 0.3], [-6.1, 0.9], [-6.0, 1.5]]),
         target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
-        params=replace(base, horizon=40.0, k_r=0.0, k_t=1.2, r0=1.6, eta_min=0.06, sigma_omega=8.0, d_agent_safe=0.34, d_obs_safe=0.28, k_s=3.4),
+        params=replace(base, horizon=40.0, k_r=0.0, k_t=1.2, r0=1.6, eta_min=0.06, sigma_omega=8.0, d_agent_safe=0.34, d_obs_safe=0.28, k_s=3.4, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
         success_mode="corridor_pass",
         corridor_exit_x=5.2,
     )
@@ -161,7 +161,7 @@ def build_scenarios() -> dict[str, Scenario]:
         obstacles=obstacles_s4_hard,
         initial_positions=np.array([[-6.0, -1.6], [-6.1, -0.9], [-6.0, -0.2], [-6.0, 0.5], [-6.1, 1.2], [-6.0, 1.9]]),
         target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
-        params=replace(base, horizon=60.0, k_r=0.0, k_t=1.8, r0=2.0, eta_min=0.08, sigma_omega=5.0, d_agent_safe=0.4, d_obs_safe=0.3),
+        params=replace(base, horizon=60.0, k_r=0.0, k_t=1.8, r0=2.0, eta_min=0.08, sigma_omega=5.0, d_agent_safe=0.4, d_obs_safe=0.3, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
         success_mode="corridor_pass",
         corridor_exit_x=5.2,
     )
@@ -173,7 +173,7 @@ def build_scenarios() -> dict[str, Scenario]:
         obstacles=obstacles_s4_medium,
         initial_positions=np.array([[-6.0, -1.5], [-6.1, -0.9], [-6.0, -0.3], [-6.0, 0.3], [-6.1, 0.9], [-6.0, 1.5]]),
         target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
-        params=replace(base, horizon=40.0, k_r=0.0, k_t=1.2, r0=1.6, eta_min=0.06, sigma_omega=8.0, d_agent_safe=0.34, d_obs_safe=0.28, k_s=3.4),
+        params=replace(base, horizon=40.0, k_r=0.0, k_t=1.2, r0=1.6, eta_min=0.06, sigma_omega=8.0, d_agent_safe=0.34, d_obs_safe=0.28, k_s=3.4, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
         success_mode="corridor_pass",
         corridor_exit_x=5.2,
     )
