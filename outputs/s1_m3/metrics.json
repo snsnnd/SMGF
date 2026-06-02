@@ -1,0 +1,18 @@
+{
+  "success": true,
+  "completion_time": 16.400000000000002,
+  "min_obs_distance": 1.2405750815173873,
+  "min_agent_distance": Infinity,
+  "collisions": false,
+  "control_cost": 20.803232109259262,
+  "control_smoothness": 816.7045044633023,
+  "input_saturation_ratio": 0.0,
+  "max_angle_gap_deg": 0.0,
+  "radius_variance": 0.0,
+  "mean_radius": 0.023786197262201835,
+  "current_center_error": 0.023786197262201835,
+  "predicted_center_error": 0.023786197262201835,
+  "path_length": 26.914202441379818,
+  "stall_steps": 0,
+  "convoy_ratio": 1.0
+}
