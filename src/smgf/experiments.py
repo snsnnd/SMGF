@@ -16,6 +16,50 @@ from .scenarios import build_scenarios
 METHOD_LIBRARY = default_methods()
 SCENARIOS = build_scenarios()
 
+EXPERIMENT_GROUPS = {
+    "A_basic_modules": {
+        "title": "Group A Basic Module Verification",
+        "entries": [
+            {"scene": "a1_single_goal_reach", "methods": ["M1", "M2"]},
+            {"scene": "s1_single_obstacle", "methods": ["M1", "M2", "M3"]},
+            {"scene": "a3_multi_agent_safety_crossing", "methods": ["M7", "M10"]},
+        ],
+    },
+    "B_encirclement_geometry": {
+        "title": "Group B Encirclement Geometry Verification",
+        "entries": [
+            {"scene": "b1_static_uniform_encirclement", "methods": ["M4", "M7"]},
+            {"scene": "s2_same_side_expansion", "methods": ["M4", "M5", "M6", "M7", "M9"]},
+            {"scene": "b3_moving_target_open_encirclement", "methods": ["M4", "M7", "M9"]},
+        ],
+    },
+    "C_pressure_passage": {
+        "title": "Group C Pressure and Passage Verification",
+        "entries": [
+            {"scene": "s4_narrow_passage_easy", "methods": ["M4", "M5", "M6", "M7"]},
+            {"scene": "s4_narrow_passage_medium", "methods": ["M4", "M5", "M6", "M7"]},
+            {"scene": "s4_narrow_passage_hard", "methods": ["M4", "M5", "M6", "M7"]},
+        ],
+    },
+    "D_prediction_navigation": {
+        "title": "Group D Predictive Navigation Verification",
+        "entries": [
+            {"scene": "s6_fast_target", "methods": ["M4", "M7", "M9"]},
+            {"scene": "d2_fast_target_single_obstacle", "methods": ["M4", "M7", "M9"]},
+        ],
+    },
+    "E_integrated_challenges": {
+        "title": "Group E Integrated Challenge Verification",
+        "entries": [
+            {"scene": "e1_tracking_single_obstacle", "methods": ["M4", "M6", "M7", "M9"]},
+            {"scene": "e2_tracking_sparse_obstacles", "methods": ["M4", "M6", "M7", "M9"]},
+            {"scene": "s5_dense_tracking_easy", "methods": ["M4", "M6", "M7", "M9"]},
+            {"scene": "s5_dense_tracking_medium", "methods": ["M4", "M6", "M7", "M9"]},
+            {"scene": "s5_dense_tracking_hard", "methods": ["M4", "M6", "M7", "M9"]},
+        ],
+    },
+}
+
 
 def _apply_seed_jitter(scene: Scenario, seed: int) -> tuple[np.ndarray, list]:
     rng = np.random.default_rng(seed)
@@ -144,40 +188,8 @@ def _metrics_to_row(scene_key: str, method_key: str, seed: int, metrics: TrialMe
     return row
 
 
-def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None = None, methods: list[str] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
-    output_path = Path(output_dir)
-    output_path.mkdir(parents=True, exist_ok=True)
-    selected_scenes = scenes or [
-        "s1_single_obstacle",
-        "s2_same_side_expansion",
-        "s3_static_encirclement",
-        "s4_narrow_passage_easy",
-        "s4_narrow_passage_medium",
-        "s4_narrow_passage_hard",
-        "s5_tracking_stage0",
-        "s5_tracking_stage1",
-        "s5_tracking_stage2",
-        "s6_fast_target",
-    ]
-    selected_methods = methods or ["M1", "M3", "M4", "M5", "M6", "M7"]
-    rows = []
-
-    for scene_key in selected_scenes:
-        scene = SCENARIOS[scene_key]
-        for method_key in selected_methods:
-            if scene.n_agents == 1 and method_key not in {"M1", "M2", "M3"}:
-                continue
-            result = run_scene_trial(scene, METHOD_LIBRARY[method_key], seed=0)
-            plot_dir = output_path / "examples" / scene_key / method_key
-            _plot_trial(result, plot_dir)
-            for seed in range(trials):
-                metrics = run_scene_trial(scene, METHOD_LIBRARY[method_key], seed=seed)["metrics"]
-                rows.append(_metrics_to_row(scene_key, method_key, seed, metrics))
-
-    detail_df = pd.DataFrame(rows)
-    detail_df.to_csv(output_path / "trial_metrics.csv", index=False)
-
-    summary = (
+def _summarize_detail(detail_df: pd.DataFrame) -> pd.DataFrame:
+    return (
         detail_df.groupby(["scene", "method"])
         .agg(
             success_rate=("success", "mean"),
@@ -219,10 +231,49 @@ def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None
         )
         .reset_index()
     )
-    summary.to_csv(output_path / "summary_metrics.csv", index=False)
 
+
+def _run_entries(entries: list[dict], output_path: Path, trials: int, seed_start: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    rows = []
+    for entry in entries:
+        scene_key = entry["scene"]
+        scene = SCENARIOS[scene_key]
+        for method_key in entry["methods"]:
+            if scene.n_agents == 1 and method_key not in {"M1", "M2", "M3"}:
+                continue
+            result = run_scene_trial(scene, METHOD_LIBRARY[method_key], seed=seed_start)
+            plot_dir = output_path / "examples" / scene_key / method_key
+            _plot_trial(result, plot_dir)
+            for seed in range(seed_start, seed_start + trials):
+                metrics = run_scene_trial(scene, METHOD_LIBRARY[method_key], seed=seed)["metrics"]
+                rows.append(_metrics_to_row(scene_key, method_key, seed, metrics))
+    detail_df = pd.DataFrame(rows)
+    detail_df.to_csv(output_path / "trial_metrics.csv", index=False)
+    summary = _summarize_detail(detail_df)
+    summary.to_csv(output_path / "summary_metrics.csv", index=False)
     with (output_path / "summary_metrics.json").open("w", encoding="utf-8") as fh:
         json.dump(summary.to_dict(orient="records"), fh, ensure_ascii=False, indent=2)
+    return detail_df, summary
+
+
+def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None = None, methods: list[str] | None = None, seed_start: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    selected_scenes = scenes or [
+        "s1_single_obstacle",
+        "s2_same_side_expansion",
+        "s3_static_encirclement",
+        "s4_narrow_passage_easy",
+        "s4_narrow_passage_medium",
+        "s4_narrow_passage_hard",
+        "s5_tracking_stage0",
+        "s5_tracking_stage1",
+        "s5_tracking_stage2",
+        "s6_fast_target",
+    ]
+    selected_methods = methods or ["M1", "M3", "M4", "M5", "M6", "M7"]
+    entries = [{"scene": scene_key, "methods": selected_methods} for scene_key in selected_scenes]
+    detail_df, summary = _run_entries(entries, output_path, trials=trials, seed_start=seed_start)
 
     for scene_key in selected_scenes:
         scene_df = summary[summary["scene"] == scene_key]
@@ -243,4 +294,14 @@ def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None
         fig.savefig(output_path / f"{scene_key}_summary.png", dpi=180)
         plt.close(fig)
 
+    return detail_df, summary
+
+
+def run_group(group_key: str, output_dir: str | Path, trials: int = 10, seed_start: int = 0) -> tuple[pd.DataFrame, pd.DataFrame]:
+    group = EXPERIMENT_GROUPS[group_key]
+    output_path = Path(output_dir)
+    output_path.mkdir(parents=True, exist_ok=True)
+    with (output_path / "group_metadata.json").open("w", encoding="utf-8") as fh:
+        json.dump({"group_key": group_key, "title": group["title"], "entries": group["entries"], "trials": trials, "seed_start": seed_start}, fh, ensure_ascii=False, indent=2)
+    detail_df, summary = _run_entries(group["entries"], output_path, trials=trials, seed_start=seed_start)
     return detail_df, summary

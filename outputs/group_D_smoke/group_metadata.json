@@ -1,0 +1,24 @@
+{
+  "group_key": "D_prediction_navigation",
+  "title": "Group D Predictive Navigation Verification",
+  "entries": [
+    {
+      "scene": "s6_fast_target",
+      "methods": [
+        "M4",
+        "M7",
+        "M9"
+      ]
+    },
+    {
+      "scene": "d2_fast_target_single_obstacle",
+      "methods": [
+        "M4",
+        "M7",
+        "M9"
+      ]
+    }
+  ],
+  "trials": 1,
+  "seed_start": 0
+}

@@ -6,7 +6,7 @@ from dataclasses import asdict, replace
 from pathlib import Path
 
 from .core import default_methods
-from .experiments import METHOD_LIBRARY, SCENARIOS, _plot_trial, run_scene_trial, run_suite
+from .experiments import EXPERIMENT_GROUPS, METHOD_LIBRARY, SCENARIOS, _plot_trial, run_group, run_scene_trial, run_suite
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -23,6 +23,13 @@ def build_parser() -> argparse.ArgumentParser:
     suite_cmd = sub.add_parser("run-suite", help="Run the main experiment suite")
     suite_cmd.add_argument("--trials", type=int, default=10)
     suite_cmd.add_argument("--output", type=str, required=True)
+    suite_cmd.add_argument("--seed-start", type=int, default=0)
+
+    group_cmd = sub.add_parser("run-group", help="Run a restructured experiment group")
+    group_cmd.add_argument("--group", choices=sorted(EXPERIMENT_GROUPS.keys()), required=True)
+    group_cmd.add_argument("--trials", type=int, default=10)
+    group_cmd.add_argument("--seed-start", type=int, default=0)
+    group_cmd.add_argument("--output", type=str, required=True)
 
     return parser
 
@@ -41,7 +48,10 @@ def main() -> None:
             json.dump(asdict(result["metrics"]), fh, ensure_ascii=False, indent=2)
         print(json.dumps(asdict(result["metrics"]), ensure_ascii=False, indent=2))
     elif args.command == "run-suite":
-        _, summary = run_suite(args.output, trials=args.trials)
+        _, summary = run_suite(args.output, trials=args.trials, seed_start=args.seed_start)
+        print(summary.to_string(index=False))
+    elif args.command == "run-group":
+        _, summary = run_group(args.group, args.output, trials=args.trials, seed_start=args.seed_start)
         print(summary.to_string(index=False))
 
 

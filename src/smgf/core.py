@@ -83,6 +83,7 @@ class Params:
     gmax_threshold_deg: float = 140.0
     radius_tolerance: float = 0.6
     sigma_r_threshold: float = 0.9
+    k_angle: float = 0.35
     env_flow: Callable[[np.ndarray, float], np.ndarray] = field(
         default=lambda p, t: np.zeros(2, dtype=float)
     )
@@ -102,6 +103,7 @@ class Method:
     force_rho_one: bool = False
     traditional_apf: bool = False
     allow_prediction: bool = True
+    use_angle_spread: bool = False
 
 
 @dataclass(frozen=True)
@@ -128,6 +130,8 @@ def default_methods() -> dict[str, Method]:
         "M6": Method("SMGF without Omega", use_omega=False),
         "M7": Method("Full SMGF"),
         "M8": Method("Full SMGF without Curl", use_curl=False),
+        "M9": Method("Full SMGF with Angle Regularization", use_angle_spread=True),
+        "M10": Method("Full SMGF without Safe", use_safe=False),
     }
 
 
@@ -241,6 +245,23 @@ class SMGFController:
         dist = norm(delta)
         return -self.params.k_r * (dist - self.params.r_c) * delta / (dist + EPS)
 
+    def _angle_force(self, idx: int, positions: np.ndarray, target: Target, predicted_target: np.ndarray) -> np.ndarray:
+        if not self.method.use_angle_spread or len(positions) < 3:
+            return np.zeros(2)
+        center = (1.0 - self.params.beta_lead) * target.position + self.params.beta_lead * predicted_target
+        rel = positions - center[None, :]
+        angles = np.mod(np.arctan2(rel[:, 1], rel[:, 0]), 2 * np.pi)
+        order = np.argsort(angles)
+        rank = int(np.where(order == idx)[0][0])
+        prev_idx = order[(rank - 1) % len(order)]
+        next_idx = order[(rank + 1) % len(order)]
+        theta_i = angles[idx]
+        dtheta_plus = float((angles[next_idx] - theta_i) % (2 * np.pi))
+        dtheta_minus = float((theta_i - angles[prev_idx]) % (2 * np.pi))
+        radial = unit(positions[idx] - center)
+        tangential = rotate90(radial)
+        return self.params.k_angle * (dtheta_plus - dtheta_minus) * tangential
+
     def compute(self, positions: np.ndarray, target: Target, omega_prev: np.ndarray, obstacles: list[Obstacle], t: float) -> dict[str, np.ndarray]:
         self.params_obstacles = obstacles
         n_agents = len(positions)
@@ -275,6 +296,7 @@ class SMGFController:
             safe = self._safe_force(i, positions, neighbors[i])
             topo = self._topology_force(i, positions, neighbors[i])
             enc = self._encirclement_force(position, target, predicted_target)
+            ang = self._angle_force(i, positions, target, predicted_target)
             psi_hat[i], psi_tilde[i], d_val = self._local_psi(i, positions, target, neighbors[i], n_agents)
             alpha = min(1.0, self.params.dt / max(self.params.tau_omega, self.params.dt))
             omega[i] = clip01((1.0 - alpha) * omega_prev[i] + alpha * phi)
@@ -285,7 +307,7 @@ class SMGFController:
             else:
                 rho[i] = eta * d_val
             total_topo = topo if self.method.force_rho_one else rho[i] * topo
-            raw = (nav + rep + curl + safe + total_topo + enc) / self.params.gamma_d
+            raw = (nav + rep + curl + safe + total_topo + enc + ang) / self.params.gamma_d
             u[i] = smooth_bound(raw, self.params.u_max)
 
         env = np.array([self.params.env_flow(p, t) for p in positions])

@@ -4,7 +4,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from smgf.experiments import run_suite
+from smgf.experiments import EXPERIMENT_GROUPS, run_group, run_suite
 
 
 class RunSuiteSmokeTests(unittest.TestCase):
@@ -38,6 +38,21 @@ class RunSuiteSmokeTests(unittest.TestCase):
                 "time_to_full_geom_mean",
             }
             self.assertTrue(expected_columns.issubset(summary_df.columns))
+
+    def test_run_group_writes_group_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            output_dir = Path(tmp) / "group"
+            detail_df, summary_df = run_group(
+                group_key="A_basic_modules",
+                output_dir=output_dir,
+                trials=1,
+                seed_start=0,
+            )
+
+            self.assertFalse(detail_df.empty)
+            self.assertFalse(summary_df.empty)
+            self.assertTrue((output_dir / "group_metadata.json").exists())
+            self.assertIn("A_basic_modules", EXPERIMENT_GROUPS)
 
 
 if __name__ == "__main__":

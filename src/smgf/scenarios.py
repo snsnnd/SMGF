@@ -47,6 +47,30 @@ def build_scenarios() -> dict[str, Scenario]:
         success_mode="goal_reach",
     )
 
+    a1 = Scenario(
+        key="a1_single_goal_reach",
+        title="A1 Single-Agent Goal Reach",
+        description="Single agent reaches a static goal in open space to validate navigation and input bounding.",
+        n_agents=1,
+        obstacles=[],
+        initial_positions=np.array([[-6.0, 0.0]]),
+        target_fn=_line_target(np.array([6.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=20.0, t_pred=0.0, k_r=0.0, r_c=0.0),
+        success_mode="goal_reach",
+    )
+
+    a3 = Scenario(
+        key="a3_multi_agent_safety_crossing",
+        title="A3 Multi-Agent Safety Crossing",
+        description="Agents converge toward a shared goal from opposite sides to isolate the contribution of the safe force.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-4.5, 0.0], [4.5, 0.0], [0.0, -4.5], [0.0, 4.5], [-3.2, -3.2], [3.2, 3.2]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=28.0, t_pred=0.0, k_r=0.0, r_c=0.0, d_agent_safe=0.55, k_s=4.0),
+        success_mode="target_track",
+    )
+
     s2 = Scenario(
         key="s2_same_side_expansion",
         title="S2 Same-Side Expansion",
@@ -76,6 +100,30 @@ def build_scenarios() -> dict[str, Scenario]:
         target_fn=_line_target(np.array([0.0, 0.0]), np.zeros(2)),
         params=replace(base, horizon=50.0, r_c=1.7, radius_tolerance=0.4),
         success_mode="encirclement",
+    )
+
+    b1 = Scenario(
+        key="b1_static_uniform_encirclement",
+        title="B1 Static Uniform Encirclement",
+        description="Agents start around the target and validate encirclement radius convergence without obstacle interference.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-3.5, 0.0], [-1.8, 3.0], [1.8, 3.0], [3.5, 0.0], [1.8, -3.0], [-1.8, -3.0]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=38.0, r_c=1.8, radius_tolerance=0.35, k_t=1.0, r0=1.8),
+        success_mode="encirclement",
+    )
+
+    b3 = Scenario(
+        key="b3_moving_target_open_encirclement",
+        title="B3 Moving Target Open Encirclement",
+        description="Moving target in open space used to isolate prediction and moving-target encirclement behavior.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.15, omega=0.035),
+        params=replace(base, horizon=65.0, t_pred=0.7, d_agent_safe=0.45, r_c=3.0, beta_lead=0.25, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
     )
 
     obstacles_s4_easy = _corridor_obstacles(y_center=2.8, radius=1.35)
@@ -234,12 +282,55 @@ def build_scenarios() -> dict[str, Scenario]:
         params=replace(base, horizon=60.0, t_pred=1.0),
         success_mode="target_track",
     )
+    d2 = Scenario(
+        key="d2_fast_target_single_obstacle",
+        title="D2 Fast Target Single Obstacle",
+        description="Fast moving target with a single obstacle, used after D1 to validate prediction under mild obstacle interference.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([3.0, 0.0]), radius=1.0)],
+        initial_positions=np.array([[-8.0, -2.0], [-8.1, -1.0], [-8.0, 0.0], [-7.9, 1.0], [-8.0, 2.0], [-8.1, 3.0]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.array([0.6, 0.15])),
+        params=replace(base, horizon=60.0, t_pred=0.7, d_obs_safe=0.3, d_agent_safe=0.5, r_c=2.8),
+        success_mode="target_track",
+    )
+
+    e1 = Scenario(
+        key="e1_tracking_single_obstacle",
+        title="E1 Tracking Single Obstacle",
+        description="Integrated challenge with moving target and one obstacle.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([2.5, 0.0]), radius=0.9)],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.16, omega=0.035),
+        params=replace(base, horizon=68.0, t_pred=0.7, d_obs_safe=0.3, d_agent_safe=0.45, r_c=3.0, beta_lead=0.25, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+
+    e2 = Scenario(
+        key="e2_tracking_sparse_obstacles",
+        title="E2 Tracking Sparse Obstacles",
+        description="Integrated challenge with moving target and a sparse obstacle set.",
+        n_agents=6,
+        obstacles=[
+            Obstacle(center=np.array([0.8, 1.5]), radius=0.8),
+            Obstacle(center=np.array([3.2, -1.4]), radius=0.85),
+            Obstacle(center=np.array([5.8, 1.2]), radius=0.8),
+        ],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.18, omega=0.04),
+        params=replace(base, horizon=70.0, t_pred=0.7, d_obs_safe=0.32, d_agent_safe=0.46, r_c=3.0, beta_lead=0.28, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
     return {
         scene.key: scene
         for scene in [
+            a1,
             s1,
+            a3,
+            b1,
             s2,
             s3,
+            b3,
             s4,
             s4_easy,
             s4_medium,
@@ -251,5 +342,8 @@ def build_scenarios() -> dict[str, Scenario]:
             s5_medium,
             s5_hard,
             s6,
+            d2,
+            e1,
+            e2,
         ]
     }
