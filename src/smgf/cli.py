@@ -8,7 +8,8 @@ from pathlib import Path
 from .core import default_methods
 from .experiments import EXPERIMENT_GROUPS, METHOD_LIBRARY, SCENARIOS, _plot_trial, run_group, run_scene_trial, run_suite
 from .merge_results import merge_summary_tables
-from .phase1 import SEED_SPLITS, run_phase1_bundle, run_prediction_scan
+from .phase1 import SEED_SPLITS, export_phase1_plot_bundle, run_phase1_bundle, run_prediction_scan
+from .plot_phase1 import plot_phase1_figures
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -55,6 +56,13 @@ def build_parser() -> argparse.ArgumentParser:
     phase1_cmd.add_argument("--prediction-workers", type=int, default=None)
     phase1_cmd.add_argument("--output", type=str, required=True)
 
+    export_cmd = sub.add_parser("export-phase1-data", help="Export a curated phase-1 plotting bundle for MATLAB")
+    export_cmd.add_argument("--output", type=str, default="data/phase1")
+
+    plot_cmd = sub.add_parser("plot-phase1-figures", help="Render curated phase-1 paper figures with Python")
+    plot_cmd.add_argument("--data-root", type=str, default="data/phase1")
+    plot_cmd.add_argument("--output", type=str, default="figures/phase1")
+
     return parser
 
 
@@ -86,6 +94,12 @@ def main() -> None:
     elif args.command == "run-phase1":
         produced = run_phase1_bundle(Path(args.output), split=args.split, trials=args.trials, seed_start=args.seed_start, group_workers=args.group_workers, prediction_workers=args.prediction_workers)
         print(json.dumps(produced, ensure_ascii=False, indent=2))
+    elif args.command == "export-phase1-data":
+        produced = export_phase1_plot_bundle(Path(args.output))
+        print(json.dumps(produced, ensure_ascii=False, indent=2))
+    elif args.command == "plot-phase1-figures":
+        plot_phase1_figures(Path.cwd(), Path(args.data_root), Path(args.output))
+        print(json.dumps({"data_root": args.data_root, "output": args.output}, ensure_ascii=False, indent=2))
 
 
 if __name__ == "__main__":

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import asdict, replace
 import json
 import os
 from concurrent.futures import ProcessPoolExecutor
-from dataclasses import replace
 from pathlib import Path
 
 import pandas as pd
@@ -16,6 +16,89 @@ SEED_SPLITS = {
     "validation": {"seed_start": 10, "trials": 30},
     "final": {"seed_start": 40, "trials": 60},
 }
+
+
+PHASE1_PLOT_BUNDLE = [
+    {
+        "figure_key": "A2_obstacle_avoidance",
+        "group": "A",
+        "scene": "s1_single_obstacle",
+        "method": "M3",
+        "seed": 10,
+        "notes": "Single-obstacle avoidance positive example for the basic module section.",
+        "params_override": {},
+    },
+    {
+        "figure_key": "B3_open_encirclement_m7",
+        "group": "B",
+        "scene": "b3_moving_target_open_encirclement",
+        "method": "M7",
+        "seed": 10,
+        "notes": "Open-space moving-target encirclement example with the main SMGF method.",
+        "params_override": {},
+    },
+    {
+        "figure_key": "B3_open_encirclement_m9",
+        "group": "B",
+        "scene": "b3_moving_target_open_encirclement",
+        "method": "M9",
+        "seed": 10,
+        "notes": "Open-space moving-target encirclement example with angle regularization.",
+        "params_override": {},
+    },
+    {
+        "figure_key": "C_medium_fixed_topo",
+        "group": "C",
+        "scene": "s4_narrow_passage_medium",
+        "method": "M4",
+        "seed": 10,
+        "notes": "Medium corridor fixed-topology reference trajectory.",
+        "params_override": {},
+    },
+    {
+        "figure_key": "C_medium_sp_smgf",
+        "group": "C",
+        "scene": "s4_narrow_passage_medium",
+        "method": "M7",
+        "seed": 37,
+        "notes": "Medium corridor structure-preserving SMGF candidate trajectory.",
+        "params_override": {
+            "k_s": 3.4,
+            "k_t": 1.5,
+            "r0": 1.9,
+            "topo_rho_floor": 0.65,
+            "topo_floor_on_threshold": 0.0,
+            "topo_floor_off_threshold": 0.0,
+            "topo_floor_release_tau": 1.0,
+        },
+    },
+    {
+        "figure_key": "D1_prediction_trend",
+        "group": "D1",
+        "scene": "s6_fast_target",
+        "method": "M7",
+        "seed": 10,
+        "notes": "High-speed target tracking trend example used to illustrate D1 behavior.",
+        "params_override": {"t_pred": 1.0},
+    },
+    {
+        "figure_key": "E1_boundary_case",
+        "group": "E",
+        "scene": "e1_tracking_single_obstacle",
+        "method": "M7",
+        "seed": 10,
+        "notes": "Integrated challenge boundary example showing obstacle-tracking coupling failure.",
+        "params_override": {},
+    },
+]
+
+
+def _params_to_json_dict(params) -> dict:
+    payload = asdict(params)
+    env_flow = payload.get("env_flow")
+    if callable(env_flow):
+        payload["env_flow"] = getattr(env_flow, "__name__", str(env_flow))
+    return payload
 
 
 def _prediction_scan_task(task: tuple[str, str, float, int]) -> dict:
@@ -118,3 +201,147 @@ def run_phase1_bundle(
         json.dump({"split": split, "seed_start": start, "trials": count, "outputs": produced}, fh, ensure_ascii=False, indent=2)
 
     return produced
+
+
+def _write_plot_bundle_entry(output_dir: Path, entry: dict) -> dict[str, str | int | dict]:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    scene = SCENARIOS[entry["scene"]]
+    params = replace(scene.params, **entry["params_override"]) if entry["params_override"] else scene.params
+    result = run_scene_trial(scene, METHOD_LIBRARY[entry["method"]], seed=entry["seed"], params_override=params)
+
+    positions_hist = result["positions_hist"]
+    u_hist = result["u_hist"]
+    omega_hist = result["omega_hist"]
+    rho_hist = result["rho_hist"]
+    psi_hist = result["psi_hist"]
+    phi_hist = result["phi_hist"]
+    target_hist = result["target_hist"]
+    predicted_target_hist = result["predicted_target_hist"]
+    dt = result["params"].dt
+    time = [step * dt for step in range(len(positions_hist))]
+
+    trajectory_rows: list[dict] = []
+    for step_idx, t in enumerate(time):
+        for agent_idx in range(positions_hist.shape[1]):
+            trajectory_rows.append(
+                {
+                    "step": step_idx,
+                    "time": t,
+                    "agent": agent_idx,
+                    "x": float(positions_hist[step_idx, agent_idx, 0]),
+                    "y": float(positions_hist[step_idx, agent_idx, 1]),
+                    "ux": float(u_hist[step_idx, agent_idx, 0]),
+                    "uy": float(u_hist[step_idx, agent_idx, 1]),
+                }
+            )
+
+    state_rows: list[dict] = []
+    for step_idx, t in enumerate(time):
+        for agent_idx in range(omega_hist.shape[1]):
+            state_rows.append(
+                {
+                    "step": step_idx,
+                    "time": t,
+                    "agent": agent_idx,
+                    "omega": float(omega_hist[step_idx, agent_idx]),
+                    "rho": float(rho_hist[step_idx, agent_idx]),
+                    "psi_tilde": float(psi_hist[step_idx, agent_idx]),
+                    "phi": float(phi_hist[step_idx, agent_idx]),
+                }
+            )
+
+    target_rows = [
+        {
+            "step": step_idx,
+            "time": t,
+            "target_x": float(target_hist[step_idx, 0]),
+            "target_y": float(target_hist[step_idx, 1]),
+            "pred_target_x": float(predicted_target_hist[step_idx, 0]),
+            "pred_target_y": float(predicted_target_hist[step_idx, 1]),
+        }
+        for step_idx, t in enumerate(time)
+    ]
+
+    obstacle_rows = [
+        {
+            "obstacle": obs_idx,
+            "center_x": float(obs.center[0]),
+            "center_y": float(obs.center[1]),
+            "radius": float(obs.radius),
+        }
+        for obs_idx, obs in enumerate(result["obstacles"])
+    ]
+
+    metrics_dict = asdict(result["metrics"])
+    recommended_end_time = result["params"].horizon
+    if metrics_dict["dwell_success"]:
+        recommended_end_time = min(result["params"].horizon, metrics_dict["completion_time"] + 5.0)
+    elif metrics_dict["collisions"]:
+        collision_rows = []
+        for step_idx, t in enumerate(time):
+            step_positions = positions_hist[step_idx]
+            min_agent_distance = float("inf")
+            for i in range(len(step_positions)):
+                for j in range(i + 1, len(step_positions)):
+                    dij = float(((step_positions[i] - step_positions[j]) ** 2).sum() ** 0.5)
+                    min_agent_distance = min(min_agent_distance, dij)
+            if min_agent_distance < result["params"].d_agent_safe:
+                collision_rows.append(t)
+        if collision_rows:
+            recommended_end_time = min(result["params"].horizon, collision_rows[0] + 5.0)
+
+    pd.DataFrame(trajectory_rows).to_csv(output_dir / "trajectory.csv", index=False)
+    pd.DataFrame(state_rows).to_csv(output_dir / "state_curves.csv", index=False)
+    pd.DataFrame(target_rows).to_csv(output_dir / "target_curves.csv", index=False)
+    pd.DataFrame(obstacle_rows, columns=["obstacle", "center_x", "center_y", "radius"]).to_csv(output_dir / "obstacles.csv", index=False)
+
+    with (output_dir / "metrics.json").open("w", encoding="utf-8") as fh:
+        json.dump(metrics_dict, fh, ensure_ascii=False, indent=2)
+
+    with (output_dir / "metadata.json").open("w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "figure_key": entry["figure_key"],
+                "group": entry["group"],
+                "scene": entry["scene"],
+                "method": entry["method"],
+                "seed": entry["seed"],
+                "notes": entry["notes"],
+                "params": _params_to_json_dict(result["params"]),
+                "params_override": entry["params_override"],
+                "recommended_plot_end_time": recommended_end_time,
+                "horizon": result["params"].horizon,
+            },
+            fh,
+            ensure_ascii=False,
+            indent=2,
+        )
+
+    return {
+        "figure_key": entry["figure_key"],
+        "group": entry["group"],
+        "scene": entry["scene"],
+        "method": entry["method"],
+        "seed": entry["seed"],
+        "path": str(output_dir),
+    }
+
+
+def export_phase1_plot_bundle(output_root: Path) -> list[dict[str, str | int | dict]]:
+    output_root.mkdir(parents=True, exist_ok=True)
+    exported = []
+    for entry in PHASE1_PLOT_BUNDLE:
+        figure_dir = output_root / entry["group"] / entry["figure_key"]
+        exported.append(_write_plot_bundle_entry(figure_dir, entry))
+
+    with (output_root / "bundle_manifest.json").open("w", encoding="utf-8") as fh:
+        json.dump(
+            {
+                "description": "Phase-1 MATLAB plotting bundle for paper figures.",
+                "entries": exported,
+            },
+            fh,
+            ensure_ascii=False,
+            indent=2,
+        )
+    return exported
