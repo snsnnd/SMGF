@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas as pd
 
 
@@ -32,7 +33,7 @@ def _truncate_by_time(df: pd.DataFrame, end_time: float) -> pd.DataFrame:
     return df[df["time"] <= end_time].copy()
 
 
-def _plot_trajectory(ax, case: dict, title: str) -> None:
+def _plot_trajectory(ax, case: dict, title: str, show_final_ring: bool = False) -> None:
     metadata = case["metadata"]
     trajectory = _truncate_by_time(case["trajectory"], metadata["recommended_plot_end_time"])
     target = _truncate_by_time(case["target"], metadata["recommended_plot_end_time"])
@@ -46,6 +47,17 @@ def _plot_trajectory(ax, case: dict, title: str) -> None:
         ax.plot(group["x"], group["y"], linewidth=1.4)
         ax.scatter(group.iloc[0]["x"], group.iloc[0]["y"], s=18, marker="o")
         ax.scatter(group.iloc[-1]["x"], group.iloc[-1]["y"], s=24, marker="x")
+
+    if show_final_ring and len(trajectory["agent"].unique()) >= 3 and not target.empty:
+        final_step = trajectory["step"].max()
+        final = trajectory[trajectory["step"] == final_step].copy()
+        target_final = target[target["step"] == target["step"].max()].iloc[0]
+        center = np.array([target_final["target_x"], target_final["target_y"]], dtype=float)
+        final["angle"] = np.mod(np.arctan2(final["y"] - center[1], final["x"] - center[0]), 2 * np.pi)
+        final = final.sort_values("angle")
+        ring_x = final["x"].tolist() + [final.iloc[0]["x"]]
+        ring_y = final["y"].tolist() + [final.iloc[0]["y"]]
+        ax.plot(ring_x, ring_y, color="tab:purple", linewidth=1.5, linestyle="-.", label="final ring")
 
     ax.plot(target["target_x"], target["target_y"], "k--", linewidth=2.0, label="target")
     ax.plot(target["pred_target_x"], target["pred_target_y"], color="tab:red", linestyle=":", linewidth=1.4, label="predicted")
@@ -79,6 +91,20 @@ def _plot_state_curves(axs, case: dict, title: str) -> None:
         ax.fill_between(mean_state["time"], mean_state[min_key], mean_state[max_key], color=color, alpha=0.2)
         ax.set_ylabel(label)
         ax.grid(True, alpha=0.2)
+
+    t_end = float(mean_state["time"].max())
+    stage_marks = [
+        (0.18 * t_end, "approach"),
+        (0.52 * t_end, "high-pressure"),
+        (0.82 * t_end, "recovery"),
+    ]
+    for ax in axs:
+        for stage_time, _ in stage_marks:
+            ax.axvline(stage_time, color="0.35", linestyle="--", linewidth=0.9, alpha=0.7)
+    top_ax = axs[0]
+    y_top = float(mean_state["psi_max"].max()) if not mean_state.empty else 1.0
+    for stage_time, label in stage_marks:
+        top_ax.text(stage_time, y_top + 0.04, label, ha="center", va="bottom", fontsize=8)
     axs[-1].set_xlabel("time [s]")
     axs[0].set_title(title)
 
@@ -148,8 +174,8 @@ def plot_phase1_figures(repo_root: Path, data_root: Path, output_root: Path) -> 
 
     # B3 comparison
     fig, axes = plt.subplots(1, 2, figsize=(12, 5))
-    _plot_trajectory(axes[0], case_map["B3_open_encirclement_m7"], "B3 open encirclement | M7")
-    _plot_trajectory(axes[1], case_map["B3_open_encirclement_m9"], "B3 open encirclement | M9")
+    _plot_trajectory(axes[0], case_map["B3_open_encirclement_m7"], "B3 open encirclement | M7", show_final_ring=True)
+    _plot_trajectory(axes[1], case_map["B3_open_encirclement_m9"], "B3 open encirclement | M9", show_final_ring=True)
     axes[1].legend(loc="best", fontsize=8)
     fig.tight_layout()
     fig.savefig(output_root / "B3_open_encirclement_compare.png", dpi=200)
