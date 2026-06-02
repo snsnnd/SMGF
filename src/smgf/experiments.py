@@ -59,7 +59,16 @@ def run_scene_trial(scene: Scenario, method: Method, seed: int = 0, params_overr
         if k < steps - 1:
             positions = positions + params.dt * (computed["env"] + computed["u"])
 
-    metrics = evaluate_trial(scene, params, positions_hist, target_hist, predicted_target_hist, u_hist, params.dt)
+    metrics = evaluate_trial(
+        scene,
+        params,
+        positions_hist,
+        target_hist,
+        predicted_target_hist,
+        u_hist,
+        params.dt,
+        obstacles=obstacles,
+    )
     return {
         "scene": scene,
         "method": method,
@@ -138,7 +147,16 @@ def _metrics_to_row(scene_key: str, method_key: str, seed: int, metrics: TrialMe
 def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None = None, methods: list[str] | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
-    selected_scenes = scenes or ["s1_single_obstacle", "s2_same_side_expansion", "s3_static_encirclement", "s4_narrow_passage", "s5_dense_tracking", "s6_fast_target"]
+    selected_scenes = scenes or [
+        "s1_single_obstacle",
+        "s2_same_side_expansion",
+        "s3_static_encirclement",
+        "s4_narrow_passage",
+        "s5_dense_tracking_easy",
+        "s5_dense_tracking_medium",
+        "s5_dense_tracking_hard",
+        "s6_fast_target",
+    ]
     selected_methods = methods or ["M1", "M3", "M4", "M5", "M6", "M7"]
     rows = []
 
@@ -172,6 +190,11 @@ def run_suite(output_dir: str | Path, trials: int = 10, scenes: list[str] | None
             control_smoothness_mean=("control_smoothness", "mean"),
             input_sat_mean=("input_saturation_ratio", "mean"),
             stall_steps_mean=("stall_steps", "mean"),
+            inside_final_rate=("inside_final", "mean"),
+            radius_error_final_mean=("radius_error_final", "mean"),
+            success_geom_final_rate=("success_geom_final", "mean"),
+            success_no_collision_rate=("success_no_collision", "mean"),
+            gmax_reach_time_mean=("gmax_reach_time", "mean"),
         )
         .reset_index()
     )

@@ -97,6 +97,11 @@ class TrialMetrics:
     path_length: float
     stall_steps: int
     convoy_ratio: float
+    inside_final: bool
+    radius_error_final: float
+    success_geom_final: bool
+    success_no_collision: bool
+    gmax_reach_time: float
 
 
 def evaluate_trial(
@@ -107,7 +112,9 @@ def evaluate_trial(
     predicted_target_hist: np.ndarray,
     u_hist: np.ndarray,
     dt: float,
+    obstacles: list[Obstacle] | None = None,
 ) -> TrialMetrics:
+    eval_obstacles = scenario.obstacles if obstacles is None else obstacles
     final_positions = positions_hist[-1]
     final_target = target_hist[-1]
     final_predicted = predicted_target_hist[-1]
@@ -118,9 +125,24 @@ def evaluate_trial(
     inside = point_in_convex_polygon(final_target, hull)
     current_center_error = norm(centroid - final_target)
     predicted_center_error = norm(centroid - final_predicted)
-    min_obs = min(min_obstacle_distance(step, scenario.obstacles) for step in positions_hist)
+    min_obs = min(min_obstacle_distance(step, eval_obstacles) for step in positions_hist)
     min_agent = min(min_agent_distance(step) for step in positions_hist)
     collisions = min_obs < params.d_obs_safe or min_agent < params.d_agent_safe
+    radius_error_final = abs(mean_radius - params.r_c)
+    success_geom_final = (
+        inside
+        and gmax_deg <= params.gmax_threshold_deg
+        and radius_error_final <= params.radius_tolerance
+        and sigma_r2 <= params.sigma_r_threshold
+    )
+    success_no_collision = not collisions
+    gmax_reach_time = params.horizon
+    if len(final_positions) > 1:
+        for k in range(len(positions_hist)):
+            gmax_k = np.degrees(max_angle_gap(positions_hist[k], target_hist[k]))
+            if gmax_k <= 120.0:
+                gmax_reach_time = float(k * dt)
+                break
     control_cost = float(np.sum(np.linalg.norm(u_hist, axis=2) ** 2) * dt)
     control_delta = np.diff(u_hist, axis=0)
     control_smoothness = float(np.sum(np.linalg.norm(control_delta, axis=2) ** 2)) if len(control_delta) else 0.0
@@ -193,4 +215,9 @@ def evaluate_trial(
         path_length=path_length,
         stall_steps=stall_steps,
         convoy_ratio=convoy_ratio,
+        inside_final=inside,
+        radius_error_final=radius_error_final,
+        success_geom_final=success_geom_final,
+        success_no_collision=success_no_collision,
+        gmax_reach_time=gmax_reach_time,
     )
