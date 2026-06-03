@@ -1,0 +1,295 @@
+\documentclass[utf8]{FrontiersinHarvard}
+
+\usepackage{url,hyperref,lineno,microtype,subcaption}
+\usepackage[onehalfspacing]{setspace}
+\usepackage{amsmath,amssymb}
+
+\linenumbers
+
+\def\keyFont{\fontsize{8}{11}\helveticabold }
+\def\firstAuthorLast{Author {et~al.}}
+\def\Authors{Author One$^{1,*}$, Author Two$^{1}$}
+\def\Address{$^{1}$School/Institute, University, City, Country}
+\def\corrAuthor{Author One}
+\def\corrEmail{author@university.edu}
+
+\begin{document}
+\onecolumn
+\firstpage{1}
+
+\title[State-Modulated Guidance Fields]{A State-Modulated Guidance Field Framework for Multi-Agent Coordination in Constrained Environments}
+
+\author[\firstAuthorLast]{\Authors}
+\address{}
+\correspondance{}
+\extraAuth{}
+
+\maketitle
+
+\begin{abstract}
+\section{}
+This paper studies multi-agent coordination in constrained environments with coupled objectives including target pursuit, encirclement geometry, obstacle avoidance, and local collision prevention. We introduce a state-modulated guidance field framework (SMGF) in which an environment-pressure state $\Omega_i$ and a local formation state $\tilde{\Psi}_i$ jointly modulate the effective strength of the topology coordination term. The resulting control architecture combines navigation, hybrid obstacle avoidance, local safety, topology maintenance, and encirclement guidance in a modular and interpretable force-field formulation.
+
+To evaluate the framework, we construct a layered experimental protocol covering basic module validation, encirclement geometry, pressure-dominated corridor traversal, predictive navigation, integrated challenge scenes, and safety-force trade-off analysis. The experiments show that the proposed framework is effective in basic navigation, open-space moving-target encirclement, and mechanism decomposition settings. They also reveal a structural weakness of the original scalar modulation in high-pressure corridors: reducing topology coordination too aggressively can collapse internal group support even when obstacle collisions are avoided. To mitigate this issue, we introduce a structure-preserving topology modulation variant, which yields clear improvements in easy and medium corridor scenarios. In contrast, high-speed target tracking and integrated obstacle-tracking scenes remain failure-boundary cases, suggesting that future gains require directional formation reconfiguration rather than additional scalar tuning alone.
+
+Overall, this work contributes an interpretable state-modulated multi-agent guidance framework, a layered validation methodology, and an explicit characterization of the framework's effective region and failure boundaries.
+
+\tiny
+\keyFont{\section{Keywords:} multi-agent coordination, guidance fields, interpretable control, state modulation, encirclement, narrow passage, predictive navigation, failure-boundary analysis}
+\end{abstract}
+
+\section{Introduction}
+
+Multi-agent robotic systems are increasingly required to operate in environments where obstacle geometry, target motion, and local inter-agent safety constraints interact in nontrivial ways. Such tasks arise in pursuit-evasion, target encirclement, coordinated inspection, and cluttered-environment interception. In these settings, a useful control framework should not only generate feasible motion but also maintain interpretable links between environment constraints, formation structure, and resulting control actions.
+
+Classical artificial potential field and force-composition methods remain attractive because of their geometric transparency and low online computational cost \citep{khatib1986,reynolds1987}. However, fixed-force or fixed-topology schemes often struggle when the local environment alternates between open-space coordination and strongly constrained passage behavior. In particular, a coordination strength that is desirable in open regions may become harmful inside a narrow corridor, while an overly softened structure can collapse internal support and induce inter-agent collisions.
+
+Motivated by this tension, we propose a state-modulated guidance field (SMGF) framework in which the local control action is assembled from interpretable force components and the topology coordination term is modulated by two state variables: an environment-pressure state $\Omega_i$ and a local formation-state descriptor $\tilde{\Psi}_i$. The key intuition is that coordination should not remain fixed across all operating regimes; instead, it should adapt continuously according to how constrained the local environment is and how healthy the current group geometry remains.
+
+The first objective of this work is methodological: to formulate a modular, interpretable, and extensible multi-agent guidance framework rather than a purely performance-driven black-box controller. The second objective is experimental: to evaluate this framework through a layered validation protocol that separates basic feasibility, encirclement geometry, pressure-dominated passage behavior, predictive navigation, and integrated challenge scenes. This separation is important because a single mixed benchmark cannot distinguish whether failure comes from obstacle interaction, topology collapse, encirclement geometry, or predictive tracking mismatch.
+
+The resulting experiments show a mixed but informative picture. On the one hand, SMGF exhibits stable and interpretable positive results in basic navigation, open-space moving-target encirclement, and safety-force decomposition. On the other hand, the original scalar modulation fails in high-pressure corridor scenes because the effective topology support becomes too weak. This observation leads to a structure-preserving modification that retains a minimum coordination floor and substantially improves easy and medium corridor performance. High-speed predictive tracking and integrated challenge scenes remain difficult, thereby exposing a meaningful boundary of the current framework and motivating directional formation-reconfiguration extensions as future work.
+
+The main contributions of this paper are as follows.
+
+\begin{enumerate}
+    \item We propose SMGF, an interpretable state-modulated multi-agent guidance field framework in which environment pressure and local formation structure jointly modulate topology coordination.
+    \item We design a layered validation protocol that disentangles basic modules, encirclement geometry, pressure-dominated passage behavior, predictive navigation, integrated challenge scenes, and safety-force trade-offs.
+    \item We identify a structural limitation of the original scalar modulation in high-pressure corridors and introduce a structure-preserving topology modulation variant that clearly improves easy and medium passage scenarios.
+    \item We characterize the failure boundaries of the current framework in high-speed tracking and integrated obstacle-tracking scenes, thereby motivating future directional formation-reconfiguration and anisotropic interaction extensions.
+\end{enumerate}
+
+\section{Related Work}
+
+\subsection{Force-based motion generation}
+
+Artificial potential field methods and related force-composition approaches have long been used for navigation and obstacle avoidance because of their geometric simplicity and intuitive implementation \citep{khatib1986}. Behavior-based swarm models, including biologically inspired steering formulations, further illustrate how simple interaction rules can produce rich collective motion patterns \citep{reynolds1987}. Nevertheless, these methods are known to face challenges in local minima, oscillation, and tightly constrained passages when the same interaction law must serve all operating regimes.
+
+\subsection{Distributed coordination and formation maintenance}
+
+Distributed coordination methods often rely on graph-topology interactions, consensus-style coupling, or local formation potentials. These approaches are effective when the desired formation structure is compatible with the environment, but they can become brittle when a rigid or insufficiently adaptive topology interacts with corridor geometry or moving targets. Our work differs by explicitly modulating the topology contribution with state variables rather than treating formation interaction strength as fixed.
+
+\subsection{Predictive pursuit and safety-constrained control}
+
+Predictive pursuit terms can improve target anticipation, while explicit safety frameworks such as barrier-based or velocity-obstacle methods can enforce collision constraints. In this paper, predictive navigation is retained as a lightweight anticipatory component, and the main focus is to understand how predictive behavior couples with topology modulation and local safety. Rather than claiming formal safety guarantees, we use layered experiments to expose where the current force-based architecture succeeds and where it fails.
+
+\section{Method}
+
+\subsection{Problem formulation}
+
+Consider a group of $N$ planar agents with positions $p_i \in \mathbb{R}^2$ tasked with reaching, tracking, or encircling a target while avoiding obstacles and maintaining local safety. Each agent is controlled by a bounded velocity-like input $u_i$. The control architecture should simultaneously support:
+
+\begin{enumerate}
+    \item navigation toward a static or moving target,
+    \item local obstacle avoidance,
+    \item inter-agent collision prevention,
+    \item topology-based structure maintenance,
+    \item encirclement geometry control around a target.
+\end{enumerate}
+
+\subsection{State-modulated guidance field}
+
+The core modulation law is defined as
+\begin{equation}
+\rho_i = \eta(\Omega_i) D(\tilde{\Psi}_i),
+\end{equation}
+where $\Omega_i$ is an environment-pressure state, $\tilde{\Psi}_i$ is a local formation-state descriptor, $\eta(\cdot)$ is an environment-driven modulation term, and $D(\cdot)$ is a formation-state modulation term. The main design choice is that $\rho_i$ modulates the topology coordination term rather than the local safety term.
+
+The resulting raw control is
+\begin{equation}
+u_i^{\mathrm{raw}} = F_{nav}^{(i)} + F_{hyb}^{(i)} + F_{safe}^{(i)} + \rho_i F_{topo}^{(i)} + F_{enc}^{(i)},
+\end{equation}
+followed by a bounded mapping
+\begin{equation}
+u_i = \mathrm{Bnd}(u_i^{\mathrm{raw}}).
+\end{equation}
+
+This decomposition gives each force term a distinct responsibility: $F_{nav}$ drives global progress, $F_{hyb}$ resolves local obstacle interaction, $F_{safe}$ protects minimum distance, $F_{topo}$ maintains distributed structure, and $F_{enc}$ shapes the target-centered geometry.
+
+\subsection{Environment pressure and local formation state}
+
+The environment-pressure state $\Omega_i$ is constructed from obstacle proximity and filtered over time, so that pressure changes continuously rather than discontinuously. The local formation descriptor $\tilde{\Psi}_i$ summarizes local structural quality using neighborhood and target-relative geometry information. Their combined product produces a scalar topology-modulation factor that weakens or strengthens structure maintenance according to operating context.
+
+This design reflects the hypothesis that multi-agent coordination should depend not only on the environment but also on whether the current group geometry is already collapsed, overly concentrated, or poorly spread around the target.
+
+\subsection{Structure-preserving topology modulation}
+
+The corridor experiments reveal a structural weakness of the original scalar modulation: in high-pressure regions, the topology term may be weakened so aggressively that internal group support collapses before the safety term can fully compensate. To mitigate this, we introduce a structure-preserving effective modulation,
+\begin{equation}
+\rho_i^{eff} = \rho_{floor} + (1 - \rho_{floor}) \rho_i,
+\end{equation}
+and use
+\begin{equation}
+F_{topo}^{eff} = \rho_i^{eff} F_{topo}^{(i)}.
+\end{equation}
+
+This modification does not abandon state modulation. Instead, it preserves the original modulation trend while enforcing a minimum structural support level in high-pressure regimes. The interpretation is that the original controller may enter a vulnerable interval in which topology support has already decayed but repulsive safety action is not yet strong enough to maintain orderly passage. The structure-preserving correction shrinks that vulnerable interval.
+
+In the present paper, this correction is used as a corridor-specific enhancement and is referred to as a structure-preserving SMGF variant (SP-SMGF).
+
+\subsection{Method variants used in experiments}
+
+To keep the empirical analysis interpretable, the experiments distinguish between the following representative methods.
+
+\begin{enumerate}
+    \item M4: fixed-topology guidance baseline,
+    \item M7: original SMGF-Core,
+    \item M9: SMGF with angle-regularization enhancement,
+    \item SP-SMGF-C: corridor-oriented structure-preserving SMGF variant.
+\end{enumerate}
+
+This separation is crucial because the paper does not claim that all positive results arise from the unmodified original formulation alone.
+
+\section{Experimental Design}
+
+\subsection{Layered validation protocol}
+
+The experiments are organized into six groups:
+
+\begin{enumerate}
+    \item Group A: basic module validation,
+    \item Group B: encirclement geometry validation,
+    \item Group C: pressure and passage validation,
+    \item Group D: predictive navigation validation,
+    \item Group E: integrated challenge validation,
+    \item Group F: safety-force trade-off analysis.
+\end{enumerate}
+
+This layered organization allows failure to be attributed to specific mechanisms rather than hidden inside a monolithic benchmark.
+
+\subsection{Data split and evaluation}
+
+We adopt separated seed splits for tuning, validation, and final evaluation: tuning uses seeds 0--9, validation uses seeds 10--39, and final testing is reserved for seeds 40--99. The present paper focuses on validation results when making claims.
+
+The main metrics include success rate, collision rate, obstacle-collision rate, agent-collision rate, minimum obstacle distance, minimum inter-agent distance, completion time, maximum angular gap, final radius error, and input saturation ratio.
+
+\subsection{Figure and result policy}
+
+For this paper, the strongest evidence is expected from Groups A, B, C, and F. Group D is interpreted as a trend-analysis section, while Group E is treated as a boundary-analysis section rather than as the primary source of positive evidence.
+
+\section{Results}
+
+\subsection{Basic module validation}
+
+The basic-module experiments confirm that the low-level building blocks of the framework are functional. Single-agent navigation and bounded input generation succeed reliably, and the hybrid obstacle-avoidance term changes obstacle-circumvention behavior in the expected direction. In addition, the safety-force comparison demonstrates that removing the safety term dramatically degrades the minimum inter-agent distance, confirming that the local safety component is necessary even when it does not by itself solve all difficult scenarios.
+
+\subsection{Encirclement geometry validation}
+
+The open-space encirclement experiments support two distinct conclusions. First, the original SMGF framework is able to support moving-target encirclement in open environments. Second, explicit angle regularization provides a clear geometric benefit, especially in terms of the maximum angular gap. This means that radius maintenance and angle coverage should be treated as related but distinct problems, and that the angle-regularized extension is useful when encirclement quality matters.
+
+\subsection{Pressure-dominated corridor validation}
+
+The corridor group is the most important positive result section of the paper. In the original validation results, the unmodified SMGF variant fails in corridor scenes primarily because inter-agent collisions dominate even when obstacle collisions remain low. This reveals that the original scalar modulation can over-soften topology support under strong environmental pressure.
+
+After introducing the structure-preserving correction and retuning the structural parameters, the corridor candidate achieves the following validation-level outcomes:
+
+\begin{itemize}
+    \item easy corridor: M7 success rate reaches 0.800,
+    \item medium corridor: M7 success rate reaches 0.4333,
+    \item hard corridor: M7 remains unsuccessful.
+\end{itemize}
+
+These results support a precise claim: the structure-preserving correction substantially improves easy and medium corridor behavior, but it does not yet solve the hardest passage regime. Therefore, SP-SMGF should be interpreted as a meaningful local enhancement rather than a final universal solution.
+
+\subsection{Predictive navigation validation}
+
+The D1 high-speed target experiments show that predictive horizon tuning systematically changes behavior. As $T_p$ increases, completion time and center-tracking error decrease, which indicates that predictive guidance does alter pursuit dynamics in a meaningful way. However, no successful prediction window is observed: all tested predictive horizons still yield zero success rate. Additional reduced-speed scans and direct transfer of the corridor-oriented structure enhancement improve some structural indicators, such as minimum inter-agent distance, but still fail to create a successful regime. This suggests that D1 is limited not simply by scalar prediction tuning, but by insufficient directional formation organization during high-speed pursuit.
+
+\subsection{Integrated challenge boundary analysis}
+
+The integrated challenge group remains entirely unsuccessful in the present study. Neither simple target-speed reduction nor direct reuse of the corridor-oriented structure-preserving parameters yields a nonzero success region for the E1 single-obstacle tracking case. The dominant failure mode remains obstacle collision, often accompanied by internal collision. This indicates that integrated obstacle-tracking failures cannot be resolved by passage-oriented structure repair alone and should instead be treated as a boundary motivating future directional formation-reconfiguration mechanisms.
+
+\subsection{Safety-force trade-off}
+
+The safety-force experiments show that the local safety term is necessary for maintaining minimum spacing, but it can also impose performance costs. This supports a nuanced interpretation: the current framework should not discard safety, but rather reduce its undesirable side effects through better structure organization and task-aware coupling.
+
+\section{Discussion}
+
+\subsection{What the current framework does well}
+
+The present results indicate that SMGF is strongest as an interpretable methodological framework. Its control terms are modular, its state-modulation logic is explicit, and its layered evaluation protocol makes it possible to separate basic feasibility, geometric quality, passage behavior, predictive trends, and integrated challenge boundaries. In open or moderately constrained settings, the framework exhibits stable and explainable behavior.
+
+\subsection{What the current framework does not yet solve}
+
+The experiments also reveal clear boundaries. The original scalar pressure modulation is insufficient in high-pressure passages because it can over-weaken group support. High-speed pursuit remains unsuccessful even after speed reduction and structure enhancement, indicating a missing directional organization mechanism. Integrated obstacle-tracking tasks remain dominated by coupled obstacle and formation failures. These are not random empirical shortcomings; they identify specific structural limitations of the present formulation.
+
+\subsection{Methodological interpretation}
+
+For this reason, the contribution of the paper should not be framed as a uniformly superior high-performance algorithm. Instead, it is more accurately framed as an interpretable state-modulated coordination framework with a clearly identified effective region, a validated local correction for corridor structure collapse, and explicit failure-boundary evidence for subsequent method development.
+
+\subsection{Future extensions}
+
+The current results naturally motivate at least three follow-up branches:
+
+\begin{enumerate}
+    \item SMGF-NarrowPassage, focusing on directional passage-aware structure reconfiguration,
+    \item SMGF-Queueing, focusing on directional contraction or queue-like formations in high-speed pursuit,
+    \item Geo/MeanField-SMGF, focusing on anisotropic interaction kernels and joint density-orientation field models inspired by multipolar interaction analogies.
+\end{enumerate}
+
+These branches preserve the conceptual core of SMGF while extending its structural expressiveness beyond scalar isotropic modulation.
+
+\section{Conclusion}
+
+This paper presented SMGF, a state-modulated multi-agent guidance field framework for constrained coordination tasks. The framework combines environment pressure and local formation state to modulate topology coordination while preserving an interpretable decomposition into navigation, obstacle avoidance, safety, topology, and encirclement components. Through layered validation experiments, we showed that the framework is effective in basic modules, open-space encirclement, and decomposed mechanism analysis, while also revealing a structural weakness of the original scalar modulation in high-pressure passages.
+
+To address this weakness, we introduced a structure-preserving topology modulation variant that significantly improves easy and medium corridor scenarios. At the same time, predictive pursuit and integrated obstacle-tracking experiments revealed meaningful boundaries of the current framework, particularly the need for directional formation-reconfiguration mechanisms in highly coupled tasks. We therefore view SMGF not as a finished universal solver, but as an interpretable and extensible methodological foundation for subsequent multi-agent coordination research.
+
+\section*{Conflict of Interest Statement}
+
+The authors declare that the research was conducted in the absence of any commercial or financial relationships that could be construed as a potential conflict of interest.
+
+\section*{Author Contributions}
+
+Author One led the conceptual development, software implementation, experiment design, and manuscript drafting. Author Two contributed to analysis, interpretation, and manuscript revision. All authors approved the submitted version.
+
+\section*{Funding}
+
+This research currently has no external funding statement inserted in the draft. Relevant funding information can be added here during the submission stage.
+
+\section*{Acknowledgments}
+
+The authors thank collaborators and reviewers of the internal research process for feedback on the phased experiment design and failure-boundary interpretation.
+
+\section*{Data Availability Statement}
+
+The datasets analyzed in this study are available in the project repository, including validation outputs, plotting bundles, and derived figure assets under the corresponding experiment directories.
+
+\bibliographystyle{Frontiers-Harvard}
+\bibliography{smgf_phase1_refs}
+
+\section*{Figure captions}
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[width=14cm]{../../figures/phase1/C_medium_trajectory_compare.png}
+\end{center}
+\caption{C2 medium corridor comparison between the fixed-topology baseline (left), the original M7 formulation (center), and the structure-preserving SP-SMGF variant (right). The highlighted regions indicate the corridor-entry area (A) and the high-pressure corridor segment (B). The lower zoomed panels help isolate where the original state-modulated controller becomes overly compressed and where the structure-preserving correction better retains local spacing.}
+\label{fig:c_medium_trajectory}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[width=14cm]{../../figures/phase1/C_medium_state_compare.png}
+\end{center}
+\caption{State-curve comparison for the C2 medium corridor case. The three rows show $\tilde{\Psi}$, $\Omega$, and $\rho$ for the fixed-topology baseline and the structure-preserving SMGF candidate. The annotated approach, high-pressure, and recovery stages provide a mechanism-oriented reading of how topology support changes during corridor traversal.}
+\label{fig:c_medium_state}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[width=11cm]{../../figures/phase1/C_medium_min_distance_timeseries.png}
+\end{center}
+\caption{Minimum inter-agent distance over time for the C2 medium corridor scenario. The original M7 trajectory remains more compressed than both the fixed-topology baseline and the structure-preserving SP-SMGF variant, making the structural difference more explicit than the full trajectory plot alone.}
+\label{fig:c_medium_spacing}
+\end{figure}
+
+\begin{figure}[h!]
+\begin{center}
+\includegraphics[width=14cm]{../../figures/phase1/D1_prediction_trends.png}
+\end{center}
+\caption{Predictive-horizon trends in the D1 high-speed target scenario. Increasing $T_p$ changes completion time, center-tracking error, angle coverage, and radius error in a systematic way, but does not yet create a successful operating interval.}
+\label{fig:d1_trend}
+\end{figure}
+
+\end{document}
