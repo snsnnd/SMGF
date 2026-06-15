@@ -321,6 +321,44 @@ def build_scenarios() -> dict[str, Scenario]:
         params=replace(base, horizon=70.0, t_pred=0.7, d_obs_safe=0.32, d_agent_safe=0.46, r_c=3.0, beta_lead=0.28, k_s=4.0, k_t=1.0, r0=1.8),
         success_mode="target_track",
     )
+
+    c_geo_lite = Scenario(
+        key="c_geo_directional_passage_lite",
+        title="C-Geo Lite Directional Passage",
+        description="Medium-pressure corridor reserved for the Geo-SMGF-lite directional topology prototype.",
+        n_agents=6,
+        obstacles=_corridor_obstacles(y_center=2.4, radius=1.42),
+        initial_positions=np.array([[-6.0, -1.4], [-6.0, -0.85], [-6.0, -0.3], [-6.0, 0.3], [-6.0, 0.85], [-6.0, 1.4]]),
+        target_fn=_line_target(np.array([11.5, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=42.0, k_r=0.0, k_t=1.25, r0=1.7, eta_min=0.06, sigma_omega=7.0, d_agent_safe=0.32, d_obs_safe=0.28, k_s=3.8, topo_rho_floor=0.55, topo_floor_on_threshold=0.3, topo_floor_off_threshold=0.15, topo_floor_release_tau=1.2),
+        success_mode="corridor_pass",
+        corridor_exit_x=5.1,
+    )
+
+    d_geo_lite = Scenario(
+        key="d_geo_fast_target_lite",
+        title="D-Geo Lite Fast Target",
+        description="Bridge-case pursuit scene used to test whether directional topology can produce a first queueing success band.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-7.8, -1.7], [-7.9, -0.9], [-7.8, -0.1], [-7.7, 0.7], [-7.8, 1.5], [-7.9, 2.3]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.array([0.58, 0.12])),
+        params=replace(base, horizon=55.0, t_pred=0.9, d_agent_safe=0.45, r_c=2.7, beta_lead=0.3, k_s=3.8, k_t=1.1, r0=1.75),
+        success_mode="target_track",
+    )
+
+    e_geo_lite = Scenario(
+        key="e_geo_tracking_single_obstacle_lite",
+        title="E-Geo Lite Single Obstacle Tracking",
+        description="Light integrated scene for checking whether directional compaction helps obstacle-coupled pursuit before the dense E group.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([2.8, -0.25]), radius=0.75)],
+        initial_positions=np.array([[-7.0, -2.0], [-7.1, -1.25], [-7.0, -0.5], [-7.0, 0.25], [-7.1, 1.0], [-7.0, 1.75]]),
+        target_fn=_turning_target(np.array([8.0, -0.1]), speed=0.14, omega=0.03),
+        params=replace(base, horizon=65.0, t_pred=0.8, d_obs_safe=0.28, d_agent_safe=0.44, r_c=2.7, beta_lead=0.28, k_s=3.8, k_t=1.1, r0=1.8),
+        success_mode="target_track",
+    )
+
     return {
         scene.key: scene
         for scene in [
@@ -345,5 +383,8 @@ def build_scenarios() -> dict[str, Scenario]:
             d2,
             e1,
             e2,
+            c_geo_lite,
+            d_geo_lite,
+            e_geo_lite,
         ]
     }

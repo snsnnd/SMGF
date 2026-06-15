@@ -10,6 +10,8 @@ from .experiments import EXPERIMENT_GROUPS, METHOD_LIBRARY, SCENARIOS, _plot_tri
 from .merge_results import merge_summary_tables
 from .phase1 import SEED_SPLITS, export_phase1_plot_bundle, run_phase1_bundle, run_prediction_scan
 from .plot_phase1 import plot_phase1_figures
+from .trace_compare import compare_scene_traces, export_scene_trace
+from .understanding_analysis import export_understanding_trial, run_understanding_analysis
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -63,6 +65,36 @@ def build_parser() -> argparse.ArgumentParser:
     plot_cmd.add_argument("--data-root", type=str, default="data/phase1")
     plot_cmd.add_argument("--output", type=str, default="figures/phase1")
 
+    trace_cmd = sub.add_parser("export-trace", help="Export full trace tables for one scene/method/seed")
+    trace_cmd.add_argument("--scene", choices=sorted(SCENARIOS.keys()), required=True)
+    trace_cmd.add_argument("--method", choices=sorted(METHOD_LIBRARY.keys()), required=True)
+    trace_cmd.add_argument("--seed", type=int, default=0)
+    trace_cmd.add_argument("--t-pred", type=float, default=None)
+    trace_cmd.add_argument("--output", type=str, required=True)
+
+    compare_cmd = sub.add_parser("compare-traces", help="Run two methods on the same seed and export divergence traces")
+    compare_cmd.add_argument("--scene", choices=sorted(SCENARIOS.keys()), required=True)
+    compare_cmd.add_argument("--method-a", choices=sorted(METHOD_LIBRARY.keys()), required=True)
+    compare_cmd.add_argument("--method-b", choices=sorted(METHOD_LIBRARY.keys()), required=True)
+    compare_cmd.add_argument("--seed", type=int, default=0)
+    compare_cmd.add_argument("--t-pred", type=float, default=None)
+    compare_cmd.add_argument("--output", type=str, required=True)
+
+    understanding_trial_cmd = sub.add_parser("export-understanding-trial", help="Export environment-understanding traces for one scene/method/seed")
+    understanding_trial_cmd.add_argument("--scene", choices=sorted(SCENARIOS.keys()), required=True)
+    understanding_trial_cmd.add_argument("--method", choices=sorted(METHOD_LIBRARY.keys()), required=True)
+    understanding_trial_cmd.add_argument("--seed", type=int, default=0)
+    understanding_trial_cmd.add_argument("--t-pred", type=float, default=None)
+    understanding_trial_cmd.add_argument("--output", type=str, required=True)
+
+    understanding_cmd = sub.add_parser("run-understanding-analysis", help="Run the environment-understanding analysis bundle")
+    understanding_cmd.add_argument("--scenes", nargs="*", choices=sorted(SCENARIOS.keys()), default=None)
+    understanding_cmd.add_argument("--methods", nargs="*", choices=sorted(METHOD_LIBRARY.keys()), default=None)
+    understanding_cmd.add_argument("--trials", type=int, default=5)
+    understanding_cmd.add_argument("--seed-start", type=int, default=0)
+    understanding_cmd.add_argument("--t-pred", type=float, default=None)
+    understanding_cmd.add_argument("--output", type=str, required=True)
+
     return parser
 
 
@@ -100,6 +132,25 @@ def main() -> None:
     elif args.command == "plot-phase1-figures":
         plot_phase1_figures(Path.cwd(), Path(args.data_root), Path(args.output))
         print(json.dumps({"data_root": args.data_root, "output": args.output}, ensure_ascii=False, indent=2))
+    elif args.command == "export-trace":
+        payload = export_scene_trace(args.scene, args.method, args.seed, Path(args.output), t_pred=args.t_pred)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    elif args.command == "compare-traces":
+        payload = compare_scene_traces(args.scene, args.method_a, args.method_b, args.seed, Path(args.output), t_pred=args.t_pred)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    elif args.command == "export-understanding-trial":
+        payload = export_understanding_trial(args.scene, args.method, args.seed, Path(args.output), t_pred=args.t_pred)
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    elif args.command == "run-understanding-analysis":
+        _, summary = run_understanding_analysis(
+            Path(args.output),
+            scenes=args.scenes,
+            methods=args.methods,
+            trials=args.trials,
+            seed_start=args.seed_start,
+            t_pred=args.t_pred,
+        )
+        print(summary.to_string(index=False))
 
 
 if __name__ == "__main__":

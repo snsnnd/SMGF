@@ -222,6 +222,7 @@ def _write_plot_bundle_entry(output_dir: Path, entry: dict) -> dict[str, str | i
     u_hist = result["u_hist"]
     omega_hist = result["omega_hist"]
     rho_hist = result["rho_hist"]
+    topo_gain_hist = result.get("topo_gain_hist")
     psi_hist = result["psi_hist"]
     phi_hist = result["phi_hist"]
     target_hist = result["target_hist"]
@@ -254,6 +255,7 @@ def _write_plot_bundle_entry(output_dir: Path, entry: dict) -> dict[str, str | i
                     "agent": agent_idx,
                     "omega": float(omega_hist[step_idx, agent_idx]),
                     "rho": float(rho_hist[step_idx, agent_idx]),
+                    "topo_gain": float(topo_gain_hist[step_idx, agent_idx]) if topo_gain_hist is not None else float(rho_hist[step_idx, agent_idx]),
                     "psi_tilde": float(psi_hist[step_idx, agent_idx]),
                     "phi": float(phi_hist[step_idx, agent_idx]),
                 }

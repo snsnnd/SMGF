@@ -79,6 +79,53 @@ def min_agent_distance(positions: np.ndarray) -> float:
     return minimum
 
 
+def structure_axis(positions: np.ndarray, target: np.ndarray, predicted_target: np.ndarray) -> np.ndarray:
+    center = np.mean(positions, axis=0)
+    forward = predicted_target - target
+    if norm(forward) <= EPS:
+        forward = target - center
+    if norm(forward) <= EPS:
+        return np.array([1.0, 0.0], dtype=float)
+    return forward / (norm(forward) + EPS)
+
+
+def structure_spans(positions: np.ndarray, axis: np.ndarray) -> tuple[float, float]:
+    center = np.mean(positions, axis=0)
+    perp_axis = np.array([-axis[1], axis[0]], dtype=float)
+    parallel_coords = (positions - center[None, :]) @ axis
+    lateral_coords = (positions - center[None, :]) @ perp_axis
+    longitudinal_span = float(np.max(parallel_coords) - np.min(parallel_coords)) if len(parallel_coords) else 0.0
+    lateral_width = float(np.max(lateral_coords) - np.min(lateral_coords)) if len(lateral_coords) else 0.0
+    return lateral_width, longitudinal_span
+
+
+def queue_stability_score(positions_hist: np.ndarray, target_hist: np.ndarray, predicted_target_hist: np.ndarray) -> float:
+    if len(positions_hist) <= 1 or positions_hist.shape[1] <= 1:
+        return 1.0
+    pair_total = 0
+    flip_total = 0
+    n_agents = positions_hist.shape[1]
+    for k in range(len(positions_hist) - 1):
+        axis_prev = structure_axis(positions_hist[k], target_hist[k], predicted_target_hist[k])
+        axis_next = structure_axis(positions_hist[k + 1], target_hist[k + 1], predicted_target_hist[k + 1])
+        center_prev = np.mean(positions_hist[k], axis=0)
+        center_next = np.mean(positions_hist[k + 1], axis=0)
+        proj_prev = (positions_hist[k] - center_prev[None, :]) @ axis_prev
+        proj_next = (positions_hist[k + 1] - center_next[None, :]) @ axis_next
+        for i in range(n_agents):
+            for j in range(i + 1, n_agents):
+                delta_prev = float(proj_prev[i] - proj_prev[j])
+                delta_next = float(proj_next[i] - proj_next[j])
+                if abs(delta_prev) <= 1e-6 or abs(delta_next) <= 1e-6:
+                    continue
+                pair_total += 1
+                if delta_prev * delta_next < 0.0:
+                    flip_total += 1
+    if pair_total == 0:
+        return 1.0
+    return float(max(0.0, 1.0 - flip_total / pair_total))
+
+
 @dataclass(frozen=True)
 class TrialMetrics:
     success: bool
@@ -97,6 +144,11 @@ class TrialMetrics:
     path_length: float
     stall_steps: int
     convoy_ratio: float
+    lateral_width_final: float
+    longitudinal_span_final: float
+    last_10s_lateral_width_mean: float
+    last_10s_longitudinal_span_mean: float
+    queue_stability: float
     inside_any: bool
     inside_final: bool
     gmax_success: bool
@@ -180,6 +232,8 @@ def evaluate_trial(
     mean_radius_series = np.zeros(steps)
     sigma_series = np.zeros(steps)
     radius_error_series = np.zeros(steps)
+    lateral_width_series = np.zeros(steps)
+    longitudinal_span_series = np.zeros(steps)
     obs_distance_series = np.zeros(steps)
     agent_distance_series = np.zeros(steps)
     obs_collision_series = np.zeros(steps, dtype=bool)
@@ -187,6 +241,8 @@ def evaluate_trial(
     for k in range(steps):
         step_positions = positions_hist[k]
         step_target = target_hist[k]
+        step_predicted = predicted_target_hist[k]
+        axis_k = structure_axis(step_positions, step_target, step_predicted)
         hull_k = monotonic_chain(step_positions)
         inside_series[k] = point_in_convex_polygon(step_target, hull_k)
         gmax_deg_series[k] = np.degrees(max_angle_gap(step_positions, step_target)) if len(step_positions) > 1 else 0.0
@@ -194,6 +250,7 @@ def evaluate_trial(
         mean_radius_series[k] = mean_r_k
         sigma_series[k] = sigma_r_k
         radius_error_series[k] = abs(mean_r_k - params.r_c)
+        lateral_width_series[k], longitudinal_span_series[k] = structure_spans(step_positions, axis_k)
         obs_distance_series[k] = min_obstacle_distance(step_positions, eval_obstacles)
         agent_distance_series[k] = min_agent_distance(step_positions)
         obs_collision_series[k] = obs_distance_series[k] < params.d_obs_safe
@@ -238,11 +295,16 @@ def evaluate_trial(
     stall_steps = int(np.sum(np.mean(speed_hist, axis=1) < 0.05))
     angles = np.arctan2(final_positions[:, 1] - final_target[1], final_positions[:, 0] - final_target[0]) if len(final_positions) else np.array([0.0])
     convoy_ratio = float(np.ptp(angles) < np.pi)
+    lateral_width_final = float(lateral_width_series[-1])
+    longitudinal_span_final = float(longitudinal_span_series[-1])
+    queue_stability = queue_stability_score(positions_hist, target_hist, predicted_target_hist)
     tail_steps = max(1, int(10.0 / dt))
     last_slice = slice(max(0, steps - tail_steps), steps)
     last_10s_gmax_mean = float(np.mean(gmax_deg_series[last_slice]))
     last_10s_radius_error_mean = float(np.mean(radius_error_series[last_slice]))
     last_10s_inside_rate = float(np.mean(inside_series[last_slice]))
+    last_10s_lateral_width_mean = float(np.mean(lateral_width_series[last_slice]))
+    last_10s_longitudinal_span_mean = float(np.mean(longitudinal_span_series[last_slice]))
 
     success = False
     completion_time = params.horizon
@@ -305,6 +367,11 @@ def evaluate_trial(
         path_length=path_length,
         stall_steps=stall_steps,
         convoy_ratio=convoy_ratio,
+        lateral_width_final=lateral_width_final,
+        longitudinal_span_final=longitudinal_span_final,
+        last_10s_lateral_width_mean=last_10s_lateral_width_mean,
+        last_10s_longitudinal_span_mean=last_10s_longitudinal_span_mean,
+        queue_stability=queue_stability,
         inside_any=inside_any,
         inside_final=inside,
         gmax_success=gmax_success,

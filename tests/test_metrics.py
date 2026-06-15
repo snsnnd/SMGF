@@ -86,6 +86,9 @@ class EvaluateTrialSmokeTests(unittest.TestCase):
         self.assertTrue(metrics.dwell_success_no_collision)
         self.assertIsInstance(metrics.inside_any, bool)
         self.assertIsInstance(metrics.inside_final, bool)
+        self.assertGreaterEqual(metrics.lateral_width_final, 0.0)
+        self.assertGreaterEqual(metrics.longitudinal_span_final, 0.0)
+        self.assertGreaterEqual(metrics.queue_stability, 0.0)
         self.assertGreaterEqual(metrics.time_to_gmax, 0.0)
         self.assertGreaterEqual(metrics.success_hold_time, 0.0)
 
