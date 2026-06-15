@@ -368,6 +368,23 @@ EXPERIMENT_GROUPS = {
             {"scene": "s4_narrow_passage_hard", "methods": ["M43", "M49", "M60"]},
         ],
     },
+    "AR_leader_frontloaded_transport_release_validation": {
+        "title": "Group AR Leader Front-Loaded Transport Release Validation",
+        "entries": [
+            {"scene": "s4_narrow_passage_easy", "methods": ["M43", "M59", "M61"]},
+            {"scene": "s4_narrow_passage_medium", "methods": ["M43", "M59", "M61"]},
+            {"scene": "s4_narrow_passage_hard", "methods": ["M43", "M59", "M61"]},
+        ],
+    },
+    "AS_spring_chain_reduced_transport_release_validation": {
+        "title": "Group AS Spring-Chain Reduced Transport Release Validation",
+        "entries": [
+            {"scene": "c_geo_directional_passage_lite", "methods": ["M43", "M59", "M61", "M62"]},
+            {"scene": "s4_narrow_passage_easy", "methods": ["M43", "M59", "M61", "M62"]},
+            {"scene": "s4_narrow_passage_medium", "methods": ["M43", "M59", "M61", "M62"]},
+            {"scene": "s4_narrow_passage_hard", "methods": ["M43", "M59", "M61", "M62"]},
+        ],
+    },
 }
 
 

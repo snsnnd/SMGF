@@ -1,0 +1,14 @@
+{
+  "scenes": [
+    "s5_dense_tracking_hard"
+  ],
+  "methods": [
+    "M43",
+    "M59",
+    "M61",
+    "M62"
+  ],
+  "trials": 8,
+  "seed_start": 10,
+  "t_pred": null
+}

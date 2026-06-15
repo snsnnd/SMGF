@@ -119,6 +119,8 @@ class RunSuiteSmokeTests(unittest.TestCase):
         self.assertIn("M58", METHOD_LIBRARY)
         self.assertIn("M59", METHOD_LIBRARY)
         self.assertIn("M60", METHOD_LIBRARY)
+        self.assertIn("M61", METHOD_LIBRARY)
+        self.assertIn("M62", METHOD_LIBRARY)
         self.assertIn("c_geo_directional_passage_lite", SCENARIOS)
         self.assertIn("d_geo_fast_target_lite", SCENARIOS)
         self.assertIn("e_geo_tracking_single_obstacle_lite", SCENARIOS)
@@ -158,6 +160,8 @@ class RunSuiteSmokeTests(unittest.TestCase):
         self.assertIn("AO_leader_driven_entry_validation", EXPERIMENT_GROUPS)
         self.assertIn("AP_global_quota_redistribution_validation", EXPERIMENT_GROUPS)
         self.assertIn("AQ_unified_state_entry_push_validation", EXPERIMENT_GROUPS)
+        self.assertIn("AR_leader_frontloaded_transport_release_validation", EXPERIMENT_GROUPS)
+        self.assertIn("AS_spring_chain_reduced_transport_release_validation", EXPERIMENT_GROUPS)
 
     def test_run_phase1_bundle_writes_manifest(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

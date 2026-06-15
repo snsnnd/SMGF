@@ -398,6 +398,21 @@ dT_transport/dt = convert + P_store_transport - P_release_transport - P_loss_tra
 
 ## 12. 从 `M59` 到 `M62`：为什么要把系统压成弹簧链
 
+### 12.0 更新说明（2026-06-16）
+
+本节原先把 `outputs/aw_*` 与 `outputs/ax_*` 作为最新依据，但仓库后续已经新增：
+
+1. `outputs/ba_m62_transport_boost_v1/`
+2. `outputs/bb_m62_extended_corridor_probe_v1/`
+3. `outputs/bc_m43_m62_cross_type_validation_v1/`
+4. `outputs/bd_m43_m62_dense_tracking_hard_v1/`
+
+因此这里需要补一条更准确的当前判断：
+
+1. `M62` 仍然稳定优于 `M59/M61`，尤其体现在 `release_proxy`、`effective_drive`、`entry_flux` 与正 `r_peak` 上；
+2. 但在验证种子段里，`M62` 还没有稳定达到 `M43` 的 corridor success 水平；
+3. 因而当前最稳妥的结论应是：`M62` 证明了 spring-chain reduced model 的方向有效，但它还不是 `M43` 的替代完成版。
+
 ### 12.1 `M59` 显式 release 映射后的新判断
 
 最新结果位于：

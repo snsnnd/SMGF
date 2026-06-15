@@ -3,6 +3,23 @@
 This repository implements a reproducible Python simulation framework for
 State-Modulated Guidance Field (SMGF) experiments.
 
+## Repository Guide
+
+Current high-value entry points:
+
+1. `SMGF研究规划文档.md`
+   Current project positioning, method rationale, and future research branches.
+2. `docs/exploration/M43-M62方法分析与M43_M62交叉验证_20260616.md`
+   Current `M43-M62` corridor/energy/release branch analysis and latest validation results.
+3. `docs/phase1/README.md`
+   Phase-1 experiment and paper-oriented documentation index.
+4. `data/phase1/` and `figures/phase1/`
+   Curated plotting data and generated paper figures.
+5. `paper/phase1/`
+   Frontiers template and current manuscript drafts.
+
+Historical reports and older experiment snapshots have been archived or superseded by the documentation under `docs/` and `versions/`.
+
 ## Quick Start
 
 ```bash
@@ -88,3 +105,15 @@ Generated outputs include:
 3. per-trial metrics
 4. aggregated summary tables
 5. group metadata for the restructured experiment sets
+
+Active branch-exploration outputs currently worth reading include:
+
+1. `outputs/bc_m43_m62_cross_type_validation_v1/`
+2. `outputs/bd_m43_m62_dense_tracking_hard_v1/`
+3. `outputs/bb_m62_extended_corridor_probe_v1/`
+
+## Documentation Policy
+
+1. Keep active methodology, experiment, and paper-writing documents under `docs/`.
+2. Keep historical or superseded materials under `versions/`.
+3. Avoid storing outdated standalone reports in the repository root once they have been superseded.
