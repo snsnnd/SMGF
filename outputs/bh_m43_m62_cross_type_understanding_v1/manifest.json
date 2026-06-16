@@ -1,0 +1,13 @@
+{
+  "scenes": [
+    "d2_fast_target_single_obstacle",
+    "s5_dense_tracking_medium"
+  ],
+  "methods": [
+    "M43",
+    "M62"
+  ],
+  "trials": 6,
+  "seed_start": 10,
+  "t_pred": null
+}

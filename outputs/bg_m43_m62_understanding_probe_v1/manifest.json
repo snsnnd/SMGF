@@ -1,0 +1,16 @@
+{
+  "scenes": [
+    "c_geo_directional_passage_lite",
+    "s4_narrow_passage_medium",
+    "s4_narrow_passage_hard"
+  ],
+  "methods": [
+    "M43",
+    "M59",
+    "M61",
+    "M62"
+  ],
+  "trials": 10,
+  "seed_start": 10,
+  "t_pred": null
+}

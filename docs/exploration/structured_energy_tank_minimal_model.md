@@ -400,27 +400,32 @@ dT_transport/dt = convert + P_store_transport - P_release_transport - P_loss_tra
 
 ### 12.0 更新说明（2026-06-16）
 
-本节原先把 `outputs/aw_*` 与 `outputs/ax_*` 作为最新依据，但仓库后续已经新增：
+本节原先把 `outputs/aw_*` 与 `outputs/ax_*` 作为最新依据，但当前应以这几组更新后的验证为准：
 
-1. `outputs/ba_m62_transport_boost_v1/`
-2. `outputs/bb_m62_extended_corridor_probe_v1/`
-3. `outputs/bc_m43_m62_cross_type_validation_v1/`
-4. `outputs/bd_m43_m62_dense_tracking_hard_v1/`
+1. `outputs/be_m62_lineage_validation_v1/`
+2. `outputs/bf_m43_m62_cross_type_validation_v1/`
+3. `outputs/bg_m43_m62_understanding_probe_v1/`
+4. `outputs/bh_m43_m62_cross_type_understanding_v1/`
 
-因此这里需要补一条更准确的当前判断：
+同时需要修正一个代码层事实：
+
+1. 当前 `METHOD_LIBRARY` 里的 `M59` 已经直接启用 `front-loaded transport release`；
+2. 因而文档里“原始 `M59` / front-loaded `M59`”的区分，只能再被视为历史输出 `au/av` 的对照，而不是当前方法库里的两个现役版本。
+
+基于当前验证，更准确的判断是：
 
 1. `M62` 仍然稳定优于 `M59/M61`，尤其体现在 `release_proxy`、`effective_drive`、`entry_flux` 与正 `r_peak` 上；
-2. 但在验证种子段里，`M62` 还没有稳定达到 `M43` 的 corridor success 水平；
+2. 但这种优势目前主要体现在 `s4_narrow_passage_hard` 上的少量真实 through seed，而不是已经全面追平 `M43`；
 3. 因而当前最稳妥的结论应是：`M62` 证明了 spring-chain reduced model 的方向有效，但它还不是 `M43` 的替代完成版。
 
 ### 12.1 `M59` 显式 release 映射后的新判断
 
-最新结果位于：
+历史分离结果仍位于：
 
 1. `outputs/au_m59_transport_release_mapping_v1/`
 2. `outputs/av_m59_frontloaded_release_v1/`
 
-当前可以更准确地区分两个阶段：
+如果把它们只当作历史 ablation 看，当前仍可以保留这个判断：
 
 1. 原始 `M59`
    - 已有 `Xi` 调度、global quota 和非零 `transport_tank`；
@@ -438,10 +443,10 @@ dT_transport/dt = convert + P_store_transport - P_release_transport - P_loss_tra
 
 ### 12.2 `M61` 与 `M62`
 
-最新结果位于：
+当前最值得看的验证结果位于：
 
-1. `outputs/aw_m61_leader_frontloaded_probe_v1/`
-2. `outputs/ax_m62_spring_chain_probe_v1/`
+1. `outputs/be_m62_lineage_validation_v1/`
+2. `outputs/bg_m43_m62_understanding_probe_v1/`
 
 新增两条方法原型：
 
@@ -454,12 +459,12 @@ dT_transport/dt = convert + P_store_transport - P_release_transport - P_loss_tra
    - 测试“参考 leader 方案，把 release 更集中到头部”是否足够；
    - 结果表明：单独强化队首并不优于 `M59`。
 2. `M62`
-   - 把系统改写成最小两段式 spring-chain：
-     - `entry`：链式压缩储能 + 队首 release
-     - `transport`：后段压缩支撑 through
-   - 结果表明：
-     - `medium` 上 `r_peak` 已经变正；
-     - `hard` 上 `r_peak` 已非常接近 0。
+    - 把系统改写成最小两段式 spring-chain：
+      - `entry`：链式压缩储能 + 队首 release
+      - `transport`：后段压缩支撑 through
+    - 结果表明：
+      - `medium` 上虽然还没有 through 成功，但 `release_proxy / effective_drive / entry_flux` 都明显高于 `M59/M61`；
+      - `hard` 上已经拿到 `4/30` 的真实 through success，而 `M59/M61` 都是 `0/30`。
 
 当前新增的最小链式观测包括：
 
@@ -467,6 +472,14 @@ dT_transport/dt = convert + P_store_transport - P_release_transport - P_loss_tra
 2. `spring_head_release`
 3. `spring_rear_support`
 4. `spring_link_compression`
+5. `spring_transport_hold`
+6. `spring_recover_state`
+
+特别是 `bg_m43_m62_understanding_probe_v1` 说明：
+
+1. `M62` 在 `c_geo` 和 `s4_medium` 上的 `corridor_activation`、`effective_drive` 仍低于 `M43`，所以还没有把 spring-chain 优势转成稳定 through；
+2. 但在 `s4_hard` 上，`M62` 的 `spring_chain_storage / spring_transport_hold / spring_recover_state` 已经足以把一部分 seed 从“全失败”推进到“可通过”；
+3. 因而 `M62` 的增益不是随机波动，而是和链式储能、后段支撑这组观测量同步出现的结构性改善。
 
 最重要的新判断是：
 
@@ -474,8 +487,16 @@ dT_transport/dt = convert + P_store_transport - P_release_transport - P_loss_tra
 > 而是“单主轴上的主动阻尼弹簧链”：
 > 后段压缩储能通过链式支撑队首释放，队首释放再形成 through 通量。
 
+### 12.3 `M62` 与 `M43` 的当前关系
+
+结合 `outputs/bd_m43_corridor_validation_v1/` 与 `outputs/bg_m43_m62_understanding_probe_v1/`，当前应把两者关系写得更准确：
+
+1. `M43` 仍是 `c_geo` 与 `s4_narrow_passage_medium` 上最强、最稳的 through 原型；
+2. `M62` 还没有追平 `M43` 的成熟工作区，但已经在 `s4_narrow_passage_hard` 上给出了 `4/30` 个 `M62`-only success；
+3. 因而 `M62` 目前更像“hard corridor 上开始显现价值的 reduced model”，而不是“已全面替代 `M43` 的统一版本”。
+
 ## 13. 一句话总结
 
 当前这个最小模型的最新表述可以更新为：
 
-> 场景层决定是否进入 corridor through 工作区，拓扑层决定结构是否已经具备储能与释放条件，全局能量池 `T` 记录当前可用于 through 的输运能量；而在继续往前推进后，最新 `M59 -> M61 -> M62` 跟进已经说明：真正有前景的 reduced model 很可能不是继续细分更多局部 budget，而是把系统压成“entry -> transport”两段式的主动弹簧链 through 动力学。
+> 场景层决定是否进入 corridor through 工作区，拓扑层决定结构是否已经具备储能与释放条件，全局能量池 `T` 记录当前可用于 through 的输运能量；而在继续往前推进后，最新 `M59 -> M61 -> M62` 跟进已经说明：真正有前景的 reduced model 很可能不是继续细分更多局部 budget，而是把系统压成“entry -> transport”两段式的主动弹簧链 through 动力学。当前 `M62` 已经稳定优于 `M59/M61`，但还没有全面达到 `M43` 所在的成熟 through 工作区。
