@@ -1,0 +1,30 @@
+{
+  "group_key": "A_basic_modules",
+  "title": "Group A Basic Module Verification",
+  "entries": [
+    {
+      "scene": "a1_single_goal_reach",
+      "methods": [
+        "M1",
+        "M2"
+      ]
+    },
+    {
+      "scene": "s1_single_obstacle",
+      "methods": [
+        "M1",
+        "M2",
+        "M3"
+      ]
+    },
+    {
+      "scene": "a3_multi_agent_safety_crossing",
+      "methods": [
+        "M7",
+        "M10"
+      ]
+    }
+  ],
+  "trials": 1,
+  "seed_start": 0
+}

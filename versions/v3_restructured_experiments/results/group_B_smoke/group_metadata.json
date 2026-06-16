@@ -1,0 +1,33 @@
+{
+  "group_key": "B_encirclement_geometry",
+  "title": "Group B Encirclement Geometry Verification",
+  "entries": [
+    {
+      "scene": "b1_static_uniform_encirclement",
+      "methods": [
+        "M4",
+        "M7"
+      ]
+    },
+    {
+      "scene": "s2_same_side_expansion",
+      "methods": [
+        "M4",
+        "M5",
+        "M6",
+        "M7",
+        "M9"
+      ]
+    },
+    {
+      "scene": "b3_moving_target_open_encirclement",
+      "methods": [
+        "M4",
+        "M7",
+        "M9"
+      ]
+    }
+  ],
+  "trials": 1,
+  "seed_start": 0
+}

@@ -23,6 +23,15 @@ def _turning_target(position: np.ndarray, speed: float, omega: float):
     return target_fn
 
 
+def _corridor_obstacles(y_center: float, radius: float, x_positions: tuple[float, float] = (0.0, 4.0)) -> list[Obstacle]:
+    return [
+        Obstacle(center=np.array([x_positions[0], y_center]), radius=radius),
+        Obstacle(center=np.array([x_positions[0], -y_center]), radius=radius),
+        Obstacle(center=np.array([x_positions[1], y_center]), radius=radius),
+        Obstacle(center=np.array([x_positions[1], -y_center]), radius=radius),
+    ]
+
+
 def build_scenarios() -> dict[str, Scenario]:
     base = Params()
 
@@ -38,15 +47,46 @@ def build_scenarios() -> dict[str, Scenario]:
         success_mode="goal_reach",
     )
 
+    a1 = Scenario(
+        key="a1_single_goal_reach",
+        title="A1 Single-Agent Goal Reach",
+        description="Single agent reaches a static goal in open space to validate navigation and input bounding.",
+        n_agents=1,
+        obstacles=[],
+        initial_positions=np.array([[-6.0, 0.0]]),
+        target_fn=_line_target(np.array([6.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=20.0, t_pred=0.0, k_r=0.0, r_c=0.0),
+        success_mode="goal_reach",
+    )
+
+    a3 = Scenario(
+        key="a3_multi_agent_safety_crossing",
+        title="A3 Multi-Agent Safety Crossing",
+        description="Agents converge toward a shared goal from opposite sides to isolate the contribution of the safe force.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-4.5, 0.0], [4.5, 0.0], [0.0, -4.5], [0.0, 4.5], [-3.2, -3.2], [3.2, 3.2]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=28.0, t_pred=0.0, k_r=0.0, r_c=0.0, d_agent_safe=0.55, k_s=4.0),
+        success_mode="target_track",
+    )
+
     s2 = Scenario(
         key="s2_same_side_expansion",
         title="S2 Same-Side Expansion",
-        description="All agents start from one side and must expand into a surround configuration.",
+        description="Concentrated same-side start that stresses Psi-driven angular expansion.",
         n_agents=6,
         obstacles=[],
-        initial_positions=np.array([[-6.0, -2.2], [-5.3, -1.3], [-4.9, -0.5], [-4.8, 0.4], [-5.4, 1.2], [-6.1, 2.1]]),
+        initial_positions=np.array([
+            [-5.0, -0.30],
+            [-5.2, -0.18],
+            [-5.1, -0.06],
+            [-5.3, 0.06],
+            [-5.2, 0.18],
+            [-5.0, 0.30],
+        ]),
         target_fn=_line_target(np.array([2.0, 0.0]), np.zeros(2)),
-        params=replace(base, horizon=65.0, t_pred=0.0, rc=8.0, k_t=1.8, r0=2.2, r_c=1.5, radius_tolerance=0.35),
+        params=replace(base, horizon=80.0, t_pred=0.0, r_c=2.8, k_t=1.2, r0=1.5, radius_tolerance=0.8, gmax_threshold_deg=140.0),
         success_mode="encirclement",
     )
 
@@ -62,41 +102,169 @@ def build_scenarios() -> dict[str, Scenario]:
         success_mode="encirclement",
     )
 
-    obstacles_s4 = [
-        Obstacle(center=np.array([0.0, 2.3]), radius=1.55),
-        Obstacle(center=np.array([0.0, -2.3]), radius=1.55),
-        Obstacle(center=np.array([4.0, 2.3]), radius=1.55),
-        Obstacle(center=np.array([4.0, -2.3]), radius=1.55),
-    ]
+    b1 = Scenario(
+        key="b1_static_uniform_encirclement",
+        title="B1 Static Uniform Encirclement",
+        description="Agents start around the target and validate encirclement radius convergence without obstacle interference.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-3.5, 0.0], [-1.8, 3.0], [1.8, 3.0], [3.5, 0.0], [1.8, -3.0], [-1.8, -3.0]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=38.0, r_c=1.8, radius_tolerance=0.35, k_t=1.0, r0=1.8),
+        success_mode="encirclement",
+    )
+
+    b3 = Scenario(
+        key="b3_moving_target_open_encirclement",
+        title="B3 Moving Target Open Encirclement",
+        description="Moving target in open space used to isolate prediction and moving-target encirclement behavior.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.15, omega=0.035),
+        params=replace(base, horizon=65.0, t_pred=0.7, d_agent_safe=0.45, r_c=3.0, beta_lead=0.25, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+
+    obstacles_s4_easy = _corridor_obstacles(y_center=2.8, radius=1.35)
+    obstacles_s4_medium = _corridor_obstacles(y_center=2.45, radius=1.45)
+    obstacles_s4_hard = _corridor_obstacles(y_center=2.3, radius=1.55)
+    s4_easy = Scenario(
+        key="s4_narrow_passage_easy",
+        title="S4 Easy Narrow Passage",
+        description="Wide corridor used to verify that pressure modulation can pass an easy bottleneck before harder cases.",
+        n_agents=6,
+        obstacles=obstacles_s4_easy,
+        initial_positions=np.array([[-6.0, -1.8], [-6.0, -1.1], [-6.0, -0.4], [-6.0, 0.3], [-6.0, 1.0], [-6.0, 1.7]]),
+        target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=32.0, k_r=0.0, k_t=0.9, r0=1.5, eta_min=0.05, sigma_omega=8.0, d_agent_safe=0.28, d_obs_safe=0.25, k_s=4.0, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
+        success_mode="corridor_pass",
+        corridor_exit_x=5.2,
+    )
+    s4_medium = Scenario(
+        key="s4_narrow_passage_medium",
+        title="S4 Medium Narrow Passage",
+        description="Medium corridor retained as the main Omega validation case.",
+        n_agents=6,
+        obstacles=obstacles_s4_medium,
+        initial_positions=np.array([[-6.0, -1.5], [-6.1, -0.9], [-6.0, -0.3], [-6.0, 0.3], [-6.1, 0.9], [-6.0, 1.5]]),
+        target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=40.0, k_r=0.0, k_t=1.2, r0=1.6, eta_min=0.06, sigma_omega=8.0, d_agent_safe=0.34, d_obs_safe=0.28, k_s=3.4, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
+        success_mode="corridor_pass",
+        corridor_exit_x=5.2,
+    )
+    s4_hard = Scenario(
+        key="s4_narrow_passage_hard",
+        title="S4 Hard Narrow Passage",
+        description="Tight corridor used as a stress test after easier cases are stable.",
+        n_agents=6,
+        obstacles=obstacles_s4_hard,
+        initial_positions=np.array([[-6.0, -1.6], [-6.1, -0.9], [-6.0, -0.2], [-6.0, 0.5], [-6.1, 1.2], [-6.0, 1.9]]),
+        target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=60.0, k_r=0.0, k_t=1.8, r0=2.0, eta_min=0.08, sigma_omega=5.0, d_agent_safe=0.4, d_obs_safe=0.3, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
+        success_mode="corridor_pass",
+        corridor_exit_x=5.2,
+    )
     s4 = Scenario(
         key="s4_narrow_passage",
         title="S4 Narrow Passage",
-        description="Obstacle corridor requires pressure-driven topology softening.",
+        description="Backward-compatible alias of the medium corridor.",
         n_agents=6,
-        obstacles=obstacles_s4,
-        initial_positions=np.array([[-6.0, -1.6], [-6.1, -0.9], [-6.0, -0.2], [-6.0, 0.5], [-6.1, 1.2], [-6.0, 1.9]]),
-        target_fn=_line_target(np.array([8.0, 0.0]), np.zeros(2)),
-        params=replace(base, horizon=60.0, k_r=0.0, k_t=1.8, r0=2.0, eta_min=0.08, sigma_omega=5.0, d_agent_safe=0.4, d_obs_safe=0.3),
+        obstacles=obstacles_s4_medium,
+        initial_positions=np.array([[-6.0, -1.5], [-6.1, -0.9], [-6.0, -0.3], [-6.0, 0.3], [-6.1, 0.9], [-6.0, 1.5]]),
+        target_fn=_line_target(np.array([12.0, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=40.0, k_r=0.0, k_t=1.2, r0=1.6, eta_min=0.06, sigma_omega=8.0, d_agent_safe=0.34, d_obs_safe=0.28, k_s=3.4, topo_rho_floor=0.65, topo_floor_on_threshold=0.35, topo_floor_off_threshold=0.18, topo_floor_release_tau=1.5),
         success_mode="corridor_pass",
         corridor_exit_x=5.2,
     )
 
-    obstacles_s5 = [
-        Obstacle(center=np.array([-1.5, 2.5]), radius=1.0),
-        Obstacle(center=np.array([-0.5, -2.4]), radius=1.1),
-        Obstacle(center=np.array([2.5, 2.0]), radius=1.1),
-        Obstacle(center=np.array([2.3, -2.5]), radius=1.0),
-        Obstacle(center=np.array([5.5, 0.2]), radius=1.4),
-        Obstacle(center=np.array([7.8, 2.6]), radius=1.1),
-        Obstacle(center=np.array([7.9, -2.7]), radius=1.0),
-        Obstacle(center=np.array([10.0, 0.0]), radius=1.2),
-    ]
-    s5 = Scenario(
-        key="s5_dense_tracking",
-        title="S5 Dense-Obstacle Tracking",
-        description="Moving target pursuit under dense obstacles with corridor-like bottlenecks.",
+    s5_stage0 = Scenario(
+        key="s5_tracking_stage0",
+        title="S5 Stage 0 No-Obstacle Tracking",
+        description="Moving target without obstacles, used to isolate prediction and encirclement behavior.",
         n_agents=6,
-        obstacles=obstacles_s5,
+        obstacles=[],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.15, omega=0.035),
+        params=replace(base, horizon=65.0, t_pred=0.7, d_agent_safe=0.45, r_c=3.0, beta_lead=0.25, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+    s5_stage1 = Scenario(
+        key="s5_tracking_stage1",
+        title="S5 Stage 1 Single-Obstacle Tracking",
+        description="Moving target with one obstacle, used to study first-order avoidance and tracking conflict.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([2.5, 0.0]), radius=0.9)],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.16, omega=0.035),
+        params=replace(base, horizon=68.0, t_pred=0.7, d_obs_safe=0.3, d_agent_safe=0.45, r_c=3.0, beta_lead=0.25, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+    s5_stage2 = Scenario(
+        key="s5_tracking_stage2",
+        title="S5 Stage 2 Sparse-Obstacle Tracking",
+        description="Moving target with two to three obstacles before entering medium-density tracking.",
+        n_agents=6,
+        obstacles=[
+            Obstacle(center=np.array([0.8, 1.5]), radius=0.8),
+            Obstacle(center=np.array([3.2, -1.4]), radius=0.85),
+            Obstacle(center=np.array([5.8, 1.2]), radius=0.8),
+        ],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.18, omega=0.04),
+        params=replace(base, horizon=70.0, t_pred=0.7, d_obs_safe=0.32, d_agent_safe=0.46, r_c=3.0, beta_lead=0.28, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+
+    s5_easy = Scenario(
+        key="s5_dense_tracking_easy",
+        title="S5 Easy Obstacle Tracking",
+        description="Low-density moving-target tracking used as a feasibility rung before dense tracking.",
+        n_agents=6,
+        obstacles=[
+            Obstacle(center=np.array([0.5, 1.8]), radius=0.9),
+            Obstacle(center=np.array([3.2, -1.7]), radius=0.9),
+            Obstacle(center=np.array([6.0, 1.4]), radius=0.85),
+        ],
+        initial_positions=np.array([[-7.0, -1.8], [-7.2, -1.0], [-7.1, -0.2], [-7.0, 0.6], [-7.1, 1.4], [-7.3, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.25, omega=0.06),
+        params=replace(base, horizon=75.0, t_pred=0.7, d_obs_safe=0.35, d_agent_safe=0.55),
+        success_mode="target_track",
+    )
+
+    s5_medium = Scenario(
+        key="s5_dense_tracking_medium",
+        title="S5 Medium Obstacle Tracking",
+        description="Medium-density moving-target tracking for main dense-environment comparisons.",
+        n_agents=6,
+        obstacles=[
+            Obstacle(center=np.array([-1.0, 2.2]), radius=0.95),
+            Obstacle(center=np.array([0.2, -2.0]), radius=1.0),
+            Obstacle(center=np.array([2.8, 1.8]), radius=1.0),
+            Obstacle(center=np.array([4.4, -2.1]), radius=0.95),
+            Obstacle(center=np.array([6.8, 0.6]), radius=1.05),
+        ],
+        initial_positions=np.array([[-7.0, -2.0], [-7.2, -1.1], [-7.1, -0.2], [-7.0, 0.7], [-7.1, 1.6], [-7.3, 2.5]]),
+        target_fn=_turning_target(np.array([9.0, -0.2]), speed=0.35, omega=0.09),
+        params=replace(base, horizon=75.0, t_pred=0.8, d_obs_safe=0.4, d_agent_safe=0.6),
+        success_mode="target_track",
+    )
+
+    s5_hard = Scenario(
+        key="s5_dense_tracking_hard",
+        title="S5 Hard Dense-Obstacle Tracking",
+        description="High-density moving-target pursuit retained as a robustness stress test.",
+        n_agents=6,
+        obstacles=[
+            Obstacle(center=np.array([-1.5, 2.5]), radius=1.0),
+            Obstacle(center=np.array([-0.5, -2.4]), radius=1.1),
+            Obstacle(center=np.array([2.5, 2.0]), radius=1.1),
+            Obstacle(center=np.array([2.3, -2.5]), radius=1.0),
+            Obstacle(center=np.array([5.5, 0.2]), radius=1.4),
+            Obstacle(center=np.array([7.8, 2.6]), radius=1.1),
+            Obstacle(center=np.array([7.9, -2.7]), radius=1.0),
+            Obstacle(center=np.array([10.0, 0.0]), radius=1.2),
+        ],
         initial_positions=np.array([[-7.0, -2.2], [-7.2, -1.1], [-7.1, -0.1], [-7.0, 0.9], [-7.1, 2.0], [-7.3, 3.0]]),
         target_fn=_turning_target(np.array([9.5, -0.2]), speed=0.45, omega=0.12),
         params=replace(base, horizon=75.0, t_pred=0.9),
@@ -114,4 +282,109 @@ def build_scenarios() -> dict[str, Scenario]:
         params=replace(base, horizon=60.0, t_pred=1.0),
         success_mode="target_track",
     )
-    return {scene.key: scene for scene in [s1, s2, s3, s4, s5, s6]}
+    d2 = Scenario(
+        key="d2_fast_target_single_obstacle",
+        title="D2 Fast Target Single Obstacle",
+        description="Fast moving target with a single obstacle, used after D1 to validate prediction under mild obstacle interference.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([3.0, 0.0]), radius=1.0)],
+        initial_positions=np.array([[-8.0, -2.0], [-8.1, -1.0], [-8.0, 0.0], [-7.9, 1.0], [-8.0, 2.0], [-8.1, 3.0]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.array([0.6, 0.15])),
+        params=replace(base, horizon=60.0, t_pred=0.7, d_obs_safe=0.3, d_agent_safe=0.5, r_c=2.8),
+        success_mode="target_track",
+    )
+
+    e1 = Scenario(
+        key="e1_tracking_single_obstacle",
+        title="E1 Tracking Single Obstacle",
+        description="Integrated challenge with moving target and one obstacle.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([2.5, 0.0]), radius=0.9)],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.16, omega=0.035),
+        params=replace(base, horizon=68.0, t_pred=0.7, d_obs_safe=0.3, d_agent_safe=0.45, r_c=3.0, beta_lead=0.25, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+
+    e2 = Scenario(
+        key="e2_tracking_sparse_obstacles",
+        title="E2 Tracking Sparse Obstacles",
+        description="Integrated challenge with moving target and a sparse obstacle set.",
+        n_agents=6,
+        obstacles=[
+            Obstacle(center=np.array([0.8, 1.5]), radius=0.8),
+            Obstacle(center=np.array([3.2, -1.4]), radius=0.85),
+            Obstacle(center=np.array([5.8, 1.2]), radius=0.8),
+        ],
+        initial_positions=np.array([[-7.0, -2.3], [-7.1, -1.4], [-7.0, -0.5], [-7.0, 0.4], [-7.1, 1.3], [-7.0, 2.2]]),
+        target_fn=_turning_target(np.array([8.5, -0.2]), speed=0.18, omega=0.04),
+        params=replace(base, horizon=70.0, t_pred=0.7, d_obs_safe=0.32, d_agent_safe=0.46, r_c=3.0, beta_lead=0.28, k_s=4.0, k_t=1.0, r0=1.8),
+        success_mode="target_track",
+    )
+
+    c_geo_lite = Scenario(
+        key="c_geo_directional_passage_lite",
+        title="C-Geo Lite Directional Passage",
+        description="Medium-pressure corridor reserved for the Geo-SMGF-lite directional topology prototype.",
+        n_agents=6,
+        obstacles=_corridor_obstacles(y_center=2.4, radius=1.42),
+        initial_positions=np.array([[-6.0, -1.4], [-6.0, -0.85], [-6.0, -0.3], [-6.0, 0.3], [-6.0, 0.85], [-6.0, 1.4]]),
+        target_fn=_line_target(np.array([11.5, 0.0]), np.zeros(2)),
+        params=replace(base, horizon=42.0, k_r=0.0, k_t=1.25, r0=1.7, eta_min=0.06, sigma_omega=7.0, d_agent_safe=0.32, d_obs_safe=0.28, k_s=3.8, topo_rho_floor=0.55, topo_floor_on_threshold=0.3, topo_floor_off_threshold=0.15, topo_floor_release_tau=1.2),
+        success_mode="corridor_pass",
+        corridor_exit_x=5.1,
+    )
+
+    d_geo_lite = Scenario(
+        key="d_geo_fast_target_lite",
+        title="D-Geo Lite Fast Target",
+        description="Bridge-case pursuit scene used to test whether directional topology can produce a first queueing success band.",
+        n_agents=6,
+        obstacles=[],
+        initial_positions=np.array([[-7.8, -1.7], [-7.9, -0.9], [-7.8, -0.1], [-7.7, 0.7], [-7.8, 1.5], [-7.9, 2.3]]),
+        target_fn=_line_target(np.array([0.0, 0.0]), np.array([0.58, 0.12])),
+        params=replace(base, horizon=55.0, t_pred=0.9, d_agent_safe=0.45, r_c=2.7, beta_lead=0.3, k_s=3.8, k_t=1.1, r0=1.75),
+        success_mode="target_track",
+    )
+
+    e_geo_lite = Scenario(
+        key="e_geo_tracking_single_obstacle_lite",
+        title="E-Geo Lite Single Obstacle Tracking",
+        description="Light integrated scene for checking whether directional compaction helps obstacle-coupled pursuit before the dense E group.",
+        n_agents=6,
+        obstacles=[Obstacle(center=np.array([2.8, -0.25]), radius=0.75)],
+        initial_positions=np.array([[-7.0, -2.0], [-7.1, -1.25], [-7.0, -0.5], [-7.0, 0.25], [-7.1, 1.0], [-7.0, 1.75]]),
+        target_fn=_turning_target(np.array([8.0, -0.1]), speed=0.14, omega=0.03),
+        params=replace(base, horizon=65.0, t_pred=0.8, d_obs_safe=0.28, d_agent_safe=0.44, r_c=2.7, beta_lead=0.28, k_s=3.8, k_t=1.1, r0=1.8),
+        success_mode="target_track",
+    )
+
+    return {
+        scene.key: scene
+        for scene in [
+            a1,
+            s1,
+            a3,
+            b1,
+            s2,
+            s3,
+            b3,
+            s4,
+            s4_easy,
+            s4_medium,
+            s4_hard,
+            s5_stage0,
+            s5_stage1,
+            s5_stage2,
+            s5_easy,
+            s5_medium,
+            s5_hard,
+            s6,
+            d2,
+            e1,
+            e2,
+            c_geo_lite,
+            d_geo_lite,
+            e_geo_lite,
+        ]
+    }

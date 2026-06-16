@@ -1,0 +1,3 @@
+scene,method,success_rate,collision_rate,obs_collision_rate,agent_collision_rate,min_obs_distance_mean,min_agent_distance_mean,completion_time_mean,input_sat_mean,control_cost_mean,control_smoothness_mean
+s4_narrow_passage_medium,M6,0.0,1.0,0.0,1.0,0.6564506328613361,0.26347534176432774,16.725,0.060264946594534616,102.95654773843164,1436.1679917746578
+s4_narrow_passage_medium,M7,0.0,1.0,0.0,1.0,0.9347889893879954,0.26698090652347706,17.741666666666667,0.03275766403107227,100.73996337159392,1411.6806235246584

@@ -1,0 +1,54 @@
+{
+  "group_key": "E_integrated_challenges",
+  "title": "Group E Integrated Challenge Verification",
+  "entries": [
+    {
+      "scene": "e1_tracking_single_obstacle",
+      "methods": [
+        "M4",
+        "M6",
+        "M7",
+        "M9"
+      ]
+    },
+    {
+      "scene": "e2_tracking_sparse_obstacles",
+      "methods": [
+        "M4",
+        "M6",
+        "M7",
+        "M9"
+      ]
+    },
+    {
+      "scene": "s5_dense_tracking_easy",
+      "methods": [
+        "M4",
+        "M6",
+        "M7",
+        "M9"
+      ]
+    },
+    {
+      "scene": "s5_dense_tracking_medium",
+      "methods": [
+        "M4",
+        "M6",
+        "M7",
+        "M9"
+      ]
+    },
+    {
+      "scene": "s5_dense_tracking_hard",
+      "methods": [
+        "M4",
+        "M6",
+        "M7",
+        "M9"
+      ]
+    }
+  ],
+  "trials": 30,
+  "seed_start": 10,
+  "workers": 8
+}

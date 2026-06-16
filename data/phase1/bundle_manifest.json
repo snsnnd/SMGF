@@ -1,0 +1,69 @@
+{
+  "description": "Phase-1 MATLAB plotting bundle for paper figures.",
+  "entries": [
+    {
+      "figure_key": "A2_obstacle_avoidance",
+      "group": "A",
+      "scene": "s1_single_obstacle",
+      "method": "M3",
+      "seed": 10,
+      "path": "data/phase1/A/A2_obstacle_avoidance"
+    },
+    {
+      "figure_key": "B3_open_encirclement_m7",
+      "group": "B",
+      "scene": "b3_moving_target_open_encirclement",
+      "method": "M7",
+      "seed": 10,
+      "path": "data/phase1/B/B3_open_encirclement_m7"
+    },
+    {
+      "figure_key": "B3_open_encirclement_m9",
+      "group": "B",
+      "scene": "b3_moving_target_open_encirclement",
+      "method": "M9",
+      "seed": 10,
+      "path": "data/phase1/B/B3_open_encirclement_m9"
+    },
+    {
+      "figure_key": "C_medium_fixed_topo",
+      "group": "C",
+      "scene": "s4_narrow_passage_medium",
+      "method": "M4",
+      "seed": 10,
+      "path": "data/phase1/C/C_medium_fixed_topo"
+    },
+    {
+      "figure_key": "C_medium_original_m7",
+      "group": "C",
+      "scene": "s4_narrow_passage_medium",
+      "method": "M7",
+      "seed": 10,
+      "path": "data/phase1/C/C_medium_original_m7"
+    },
+    {
+      "figure_key": "C_medium_sp_smgf",
+      "group": "C",
+      "scene": "s4_narrow_passage_medium",
+      "method": "M7",
+      "seed": 37,
+      "path": "data/phase1/C/C_medium_sp_smgf"
+    },
+    {
+      "figure_key": "D1_prediction_trend",
+      "group": "D1",
+      "scene": "s6_fast_target",
+      "method": "M7",
+      "seed": 10,
+      "path": "data/phase1/D1/D1_prediction_trend"
+    },
+    {
+      "figure_key": "E1_boundary_case",
+      "group": "E",
+      "scene": "e1_tracking_single_obstacle",
+      "method": "M7",
+      "seed": 10,
+      "path": "data/phase1/E/E1_boundary_case"
+    }
+  ]
+}

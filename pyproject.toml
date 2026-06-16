@@ -12,6 +12,8 @@ dependencies = [
 
 [project.scripts]
 smgf = "smgf.cli:main"
+smgf-tune-s4 = "smgf.tune_s4:main"
+smgf-tune-s6 = "smgf.tune_s6_prediction:main"
 
 [build-system]
 requires = ["hatchling"]
